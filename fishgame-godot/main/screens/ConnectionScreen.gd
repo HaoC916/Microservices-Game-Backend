@@ -11,6 +11,7 @@ var password: String = ''
 
 var _reconnect: bool = false
 var _next_screen
+var _skip_auto_login: bool = false
 
 func _ready() -> void:
 	var file = File.new()
@@ -37,11 +38,12 @@ func _save_credentials() -> void:
 func _show_screen(info: Dictionary = {}) -> void:
 	_reconnect = info.get('reconnect', false)
 	_next_screen = info.get('next_screen', 'MatchScreen')
+	_skip_auto_login = info.get('skip_auto_login', false)
 	
 	tab_container.current_tab = 0
 	
 	# If we have a stored email and password, attempt to login straight away.
-	if email != '' and password != '':
+	if not _skip_auto_login and email != '' and password != '':
 		do_login()
 
 func do_login(save_credentials: bool = false) -> void:
@@ -51,12 +53,18 @@ func do_login(save_credentials: bool = false) -> void:
 		ui_layer.show_message("Session expired! Reconnecting...")
 	else:
 		ui_layer.show_message("Logging in...")
-	
+
+	Online.mark_start("login")
 	var nakama_session = yield(Online.nakama_client.authenticate_email_async(email, password, null, false), "completed")
+	Online.mark_end("login")
 	
 	if nakama_session.is_exception():
 		visible = true
 		ui_layer.show_message("Login failed!")
+		var reason = nakama_session.get_exception().message
+		if reason == '':
+			reason = "unknown"
+		Online.log_event("login_fail:" + reason)
 		
 		# Clear stored email and password, but leave the fields alone so the
 		# user can attempt to correct them.
@@ -71,6 +79,7 @@ func do_login(save_credentials: bool = false) -> void:
 			_save_credentials()
 		Online.nakama_session = nakama_session
 		ui_layer.hide_message()
+		Online.log_event("login_success")
 		
 		if _next_screen:
 			ui_layer.show_screen(_next_screen)
@@ -100,10 +109,16 @@ func _on_CreateAccountButton_pressed() -> void:
 	visible = false
 	ui_layer.show_message("Creating account...")
 
+	Online.mark_start("create_account")
 	var nakama_session = yield(Online.nakama_client.authenticate_email_async(email, password, username, true), "completed")
+	Online.mark_end("create_account")
 	
 	if nakama_session.is_exception():
 		visible = true
+		var reason = nakama_session.get_exception().message
+		if reason == '':
+			reason = "unknown"
+		Online.log_event("create_account_fail:" + reason)
 		
 		var msg = nakama_session.get_exception().message
 		# Nakama treats registration as logging in, so this is what we get if the
@@ -122,4 +137,5 @@ func _on_CreateAccountButton_pressed() -> void:
 			_save_credentials()
 		Online.nakama_session = nakama_session
 		ui_layer.hide_message()
+		Online.log_event("create_account_success")
 		ui_layer.show_screen("MatchScreen")

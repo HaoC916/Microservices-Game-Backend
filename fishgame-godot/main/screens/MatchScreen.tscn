@@ -178,5 +178,19 @@ text = "Leaderboard"
 __meta__ = {
 "_edit_use_anchors_": false
 }
+
+[node name="LogoutButton" type="Button" parent="."]
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+margin_left = -135.0
+margin_top = -54.0
+margin_right = -10.0
+text = "Logout"
+__meta__ = {
+"_edit_use_anchors_": false
+}
 [connection signal="pressed" from="PanelContainer/VBoxContainer/JoinPanel/PasteButton" to="." method="_on_PasteButton_pressed"]
 [connection signal="pressed" from="LeaderboardButton" to="." method="_on_LeaderboardButton_pressed"]
+[connection signal="pressed" from="LogoutButton" to="." method="_on_LogoutButton_pressed"]
