@@ -59,6 +59,42 @@ cd infra/nakama
 docker compose down -v
 ```
 
+## Fish Game (Godot) Experiment Client
+Fish Game (`fishgame-godot`) is used as a client workload generator for Nakama (the backend under test).
+
+Prereqs:
+- Godot `3.5.3`
+- Reachable Nakama endpoint
+
+Configure endpoint:
+- Edit `fishgame-godot/autoload/Online.gd`:
+  - `nakama_host` (target host/IP)
+  - `nakama_port` (default `7350`)
+  - `nakama_server_key` (default `defaultkey`)
+
+Hotkeys (MatchScreen):
+- `F8`: print resolved log file path to Godot Output
+- `F9`: toggle autotest matchmaking (`20` iterations, `2s` cooldown)
+- `F10`: toggle optional help overlay (hidden by default)
+
+Metrics:
+- `login_ms`: login request latency
+- `create_account_ms`: account creation request latency
+- `match_search_ms`: matchmaking request -> ticket/response latency
+- `match_found_ms`: matchmaking start -> match found event (requires 2 clients)
+- `create_match_ms`: private match create -> join callback latency
+- `join_match_ms`: join match request -> join callback latency
+
+Logs:
+- Godot Output panel
+- `user://cmpt756_latency_log.txt` (client-local log file)
+
+Teammate quick test checklist:
+1. Start Nakama backend.
+2. Run Fish Game client and log in.
+3. Press `F9` on MatchScreen and wait for repeated samples.
+4. Press `F8`, locate `cmpt756_latency_log.txt`, and share the file.
+
 ## Run Load Tests (k6 via Docker)
 Run from repo root:
 
