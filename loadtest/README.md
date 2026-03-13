@@ -1,4 +1,5 @@
 # Load Testing Scaffold (k6)
+Back to root README: [`../README.md`](../README.md)
 
 This folder contains initial k6 scripts for Nakama baseline checks.
 
