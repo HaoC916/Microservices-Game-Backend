@@ -3,221 +3,98 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 
-# ---------- Config ----------
-DOCS_DIR = Path("docs")
-LOG_FILES = {
-    "Local-Async": DOCS_DIR / "local_logs_async.txt",
-    "Local-Sync":  DOCS_DIR / "local_logs_sync.txt",
-    "GCP-Async":   DOCS_DIR / "gc_logs_async.txt",
-    "GCP-Sync":    DOCS_DIR / "gc_logs_sync.txt",
+DOCS = Path("docs")
+FILES = {
+    "Local Async": DOCS / "local_logs_async.txt",
+    "Local Sync":  DOCS / "local_logs_sync.txt",
+    "GCP Async":   DOCS / "gc_logs_async.txt",
+    "GCP Sync":    DOCS / "gc_logs_sync.txt",
 }
-OUT_DIR = DOCS_DIR / "figures"
-OUT_DIR.mkdir(parents=True, exist_ok=True)
+OUT = DOCS / "figures"
+OUT.mkdir(parents=True, exist_ok=True)
 
 LAT_RE = re.compile(r"\[LATENCY\].*?\b([a-zA-Z0-9_]+)=([0-9]+)\b")
 
-def parse_latency_file(path: Path) -> dict[str, list[int]]:
-    metrics: dict[str, list[int]] = {}
-    text = path.read_text(encoding="utf-8", errors="ignore")
-    for line in text.splitlines():
+def parse(path: Path):
+    d = {}
+    for line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
         m = LAT_RE.search(line)
-        if not m:
-            continue
-        name, val = m.group(1), int(m.group(2))
-        metrics.setdefault(name, []).append(val)
-    return metrics
+        if m:
+            k, v = m.group(1), int(m.group(2))
+            d.setdefault(k, []).append(v)
+    return d
 
-def pct(a: np.ndarray, p: float) -> float:
-    return float(np.percentile(a, p)) if a.size else float("nan")
-
-def summary(vals: list[int]) -> dict:
+def mean_p95(vals):
     a = np.array(vals, dtype=float)
-    return {
-        "n": int(a.size),
-        "mean": float(a.mean()),
-        "p50": pct(a, 50),
-        "p95": pct(a, 95),
-        "p99": pct(a, 99),
-        "min": float(a.min()),
-        "max": float(a.max()),
-    }
+    return float(a.mean()), float(np.percentile(a, 95))
 
-def save_fig(path: Path):
-    plt.tight_layout()
-    plt.savefig(path, dpi=300, bbox_inches="tight")
-    plt.close()
-
-# ---------- Plot styles (bigger, 2-column friendly) ----------
-plt.rcParams.update({
-    "font.size": 11,
-    "axes.titlesize": 13,
-    "axes.labelsize": 11,
-    "xtick.labelsize": 10,
-    "ytick.labelsize": 10,
-    "legend.fontsize": 10,
-})
-
-def hboxplot(title: str, xlabel: str, groups: list[tuple[str, list[int]]], outpath: Path):
-    labels = [g[0] for g in groups]
-    data = [g[1] for g in groups]
-
-    plt.figure(figsize=(7.2, 3.6))  # good for 2-column paper when scaled
-    plt.boxplot(
-        data,
-        vert=False,
-        labels=labels,
-        showfliers=False,  # reduce clutter for small N
-    )
-    plt.grid(True, axis="x", alpha=0.3)
-    plt.title(title)
-    plt.xlabel(xlabel)
-    save_fig(outpath)
-
-def ecdf(title: str, xlabel: str, groups: list[tuple[str, list[int]]], outpath: Path, xlim=None):
-    plt.figure(figsize=(7.2, 3.6))
-    for label, vals in groups:
-        a = np.sort(np.array(vals, dtype=float))
-        if a.size == 0:
-            continue
-        y = np.arange(1, len(a) + 1) / len(a)
-        plt.step(a, y, where="post", label=label)
-    plt.grid(True, alpha=0.3)
-    plt.title(title)
-    plt.xlabel(xlabel)
-    plt.ylabel("ECDF")
-    if xlim:
-        plt.xlim(*xlim)
-    # legend outside (clean)
-    plt.legend(loc="center left", bbox_to_anchor=(1.02, 0.5), borderaxespad=0.0)
-    save_fig(outpath)
-
-def bar_mean_p95(title: str, ylabel: str, groups: list[tuple[str, list[int]]], outpath: Path):
-    labels = [g[0] for g in groups]
-    means = []
-    p95s = []
-    for _, vals in groups:
-        a = np.array(vals, dtype=float)
-        means.append(a.mean() if a.size else np.nan)
-        p95s.append(np.percentile(a, 95) if a.size else np.nan)
-
+def bar_mean_p95(labels, means, p95s, title, ylabel, outpath):
     x = np.arange(len(labels))
-    plt.figure(figsize=(7.2, 3.6))
-    # bars = mean; error bar top = p95 (we show mean->p95 as asymmetric error)
     y = np.array(means)
     top = np.array(p95s)
     yerr = np.vstack([np.zeros_like(y), np.maximum(top - y, 0)])
 
+    plt.figure(figsize=(6.8, 3.6))
     plt.bar(x, y)
     plt.errorbar(x, y, yerr=yerr, fmt="none", capsize=4)
-    plt.xticks(x, labels, rotation=0)
-    plt.grid(True, axis="y", alpha=0.3)
-    plt.title(title)
+    plt.xticks(x, labels)
     plt.ylabel(ylabel)
-    save_fig(outpath)
+    plt.title(title)
+    plt.grid(True, axis="y", alpha=0.3)
+
+    # annotate values
+    for i in range(len(labels)):
+        plt.text(i, y[i] + 1.0, f"mean={y[i]:.1f}\np95={top[i]:.1f}", ha="center", va="bottom", fontsize=9)
+
+    plt.tight_layout()
+    plt.savefig(outpath, dpi=300, bbox_inches="tight")
+    plt.close()
 
 def main():
-    parsed = {name: parse_latency_file(path) for name, path in LOG_FILES.items()}
+    logs = {k: parse(p) for k, p in FILES.items()}
 
-    # --- Match search across all 4 ---
-    match_groups = [(k, parsed[k].get("match_search_ms", [])) for k in LOG_FILES.keys()]
-    hboxplot(
-        "Match Search Latency (match_search_ms)",
-        "Latency (ms)",
-        match_groups,
-        OUT_DIR / "pretty_match_search_hbox.png",
-    )
-    bar_mean_p95(
-        "Match Search: Mean with p95 (higher = worse)",
-        "Latency (ms)",
-        match_groups,
-        OUT_DIR / "pretty_match_search_mean_p95.png",
-    )
-    # ECDF with tight xlim to make differences visible
-    all_match = [v for _, vals in match_groups for v in vals]
-    if all_match:
-        lo, hi = min(all_match), max(all_match)
-        pad = max(2, int((hi - lo) * 0.1))
-        ecdf(
-            "Match Search ECDF (match_search_ms)",
-            "Latency (ms)",
-            match_groups,
-            OUT_DIR / "pretty_match_search_ecdf.png",
-            xlim=(lo - pad, hi + pad),
-        )
+    # -------- Figure 1: Sync E2E critical path --------
+    # E2E = match_search_ms + telemetry_sync_ms (only sync runs)
+    e2e_labels = ["Local", "GCP"]
+    e2e_means = []
+    e2e_p95s = []
 
-    # --- Telemetry sync only (Local Sync vs GCP Sync) ---
-    tele_groups = [(k, parsed[k].get("telemetry_sync_ms", [])) for k in ["Local-Sync", "GCP-Sync"]]
-    hboxplot(
-        "Telemetry Sync Overhead (telemetry_sync_ms)",
-        "Latency (ms)",
-        tele_groups,
-        OUT_DIR / "pretty_telemetry_sync_hbox.png",
-    )
-    bar_mean_p95(
-        "Telemetry Sync: Mean with p95 (higher = worse)",
-        "Latency (ms)",
-        tele_groups,
-        OUT_DIR / "pretty_telemetry_sync_mean_p95.png",
-    )
-    all_tele = [v for _, vals in tele_groups for v in vals]
-    if all_tele:
-        lo, hi = min(all_tele), max(all_tele)
-        pad = max(2, int((hi - lo) * 0.1))
-        ecdf(
-            "Telemetry Sync ECDF (telemetry_sync_ms)",
-            "Latency (ms)",
-            tele_groups,
-            OUT_DIR / "pretty_telemetry_sync_ecdf.png",
-            xlim=(lo - pad, hi + pad),
-        )
-
-    # --- E2E in sync mode only ---
-    e2e_groups = []
-    for k in ["Local-Sync", "GCP-Sync"]:
-        ms = parsed[k].get("match_search_ms", [])
-        ts = parsed[k].get("telemetry_sync_ms", [])
+    for key in ["Local Sync", "GCP Sync"]:
+        ms = logs[key].get("match_search_ms", [])
+        ts = logs[key].get("telemetry_sync_ms", [])
         n = min(len(ms), len(ts))
         e2e = [ms[i] + ts[i] for i in range(n)]
-        e2e_groups.append((k.replace("-Sync", "-Sync-E2E"), e2e))
+        m, p95 = mean_p95(e2e)
+        e2e_means.append(m)
+        e2e_p95s.append(p95)
 
-    hboxplot(
-        "Critical Path in Sync Mode (match_search + telemetry_sync)",
-        "Latency (ms)",
-        e2e_groups,
-        OUT_DIR / "pretty_sync_e2e_hbox.png",
-    )
     bar_mean_p95(
-        "Sync Critical Path: Mean with p95 (higher = worse)",
-        "Latency (ms)",
-        e2e_groups,
-        OUT_DIR / "pretty_sync_e2e_mean_p95.png",
+        e2e_labels, e2e_means, e2e_p95s,
+        title="Sync Critical Path (E2E = match_search + telemetry_sync)",
+        ylabel="Latency (ms)",
+        outpath=OUT / "REPORT_sync_e2e_mean_p95.png",
     )
-    all_e2e = [v for _, vals in e2e_groups for v in vals]
-    if all_e2e:
-        lo, hi = min(all_e2e), max(all_e2e)
-        pad = max(2, int((hi - lo) * 0.1))
-        ecdf(
-            "Sync Critical Path ECDF (E2E)",
-            "Latency (ms)",
-            e2e_groups,
-            OUT_DIR / "pretty_sync_e2e_ecdf.png",
-            xlim=(lo - pad, hi + pad),
-        )
 
-    # --- Print small textual summary for sanity ---
-    print("=== Summary ===")
-    for g in LOG_FILES.keys():
-        ms = parsed[g].get("match_search_ms", [])
-        if ms:
-            s = summary(ms)
-            print(f"{g:11s} match_search_ms n={s['n']} mean={s['mean']:.2f} p95={s['p95']:.2f} max={s['max']:.0f}")
-    for g in ["Local-Sync", "GCP-Sync"]:
-        ts = parsed[g].get("telemetry_sync_ms", [])
-        if ts:
-            s = summary(ts)
-            print(f"{g:11s} telemetry_sync_ms n={s['n']} mean={s['mean']:.2f} p95={s['p95']:.2f} max={s['max']:.0f}")
+    # -------- Figure 2 (optional): telemetry overhead only --------
+    tele_labels = ["Local", "GCP"]
+    tele_means = []
+    tele_p95s = []
+    for key in ["Local Sync", "GCP Sync"]:
+        vals = logs[key].get("telemetry_sync_ms", [])
+        m, p95 = mean_p95(vals)
+        tele_means.append(m)
+        tele_p95s.append(p95)
 
-    print(f"\nSaved nicer figures to: {OUT_DIR.resolve()}")
+    bar_mean_p95(
+        tele_labels, tele_means, tele_p95s,
+        title="Telemetry Sync Overhead (telemetry_sync_ms)",
+        ylabel="Latency (ms)",
+        outpath=OUT / "REPORT_telemetry_sync_mean_p95.png",
+    )
+
+    print("Saved:")
+    print(OUT / "REPORT_sync_e2e_mean_p95.png")
+    print(OUT / "REPORT_telemetry_sync_mean_p95.png")
 
 if __name__ == "__main__":
     main()
