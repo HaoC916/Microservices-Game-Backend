@@ -1,0 +1,156 @@
+[EVENT] 1808 nakama_host=localhost
+[EVENT] 1809 telemetry_mode=async admin_api=localhost:8000
+[EVENT] 3879 login_start
+[LATENCY] 3949 login_ms=70
+[EVENT] 3949 login_success
+[EVENT] 6289 [AUTOTEST] mode=on iterations=20
+[EVENT] 6296 [AUTOTEST] start_matchmaking
+[EVENT] 6297 match_search_start
+[EVENT] 6297 match_found_start
+[EVENT] 6297 matchmaking_request
+[LATENCY] 6345 match_search_ms=48
+[EVENT] 6345 matchmaking_ticket_received
+[EVENT] 18423 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 20423 [AUTOTEST] start_matchmaking
+[EVENT] 20424 match_search_start
+[EVENT] 20424 match_found_start
+[EVENT] 20425 matchmaking_request
+[LATENCY] 20472 match_search_ms=48
+[EVENT] 20473 matchmaking_ticket_received
+[EVENT] 32516 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 34516 [AUTOTEST] start_matchmaking
+[EVENT] 34517 match_search_start
+[EVENT] 34517 match_found_start
+[EVENT] 34517 matchmaking_request
+[LATENCY] 34565 match_search_ms=48
+[EVENT] 34565 matchmaking_ticket_received
+[EVENT] 46609 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 48609 [AUTOTEST] start_matchmaking
+[EVENT] 48610 match_search_start
+[EVENT] 48610 match_found_start
+[EVENT] 48610 matchmaking_request
+[LATENCY] 48658 match_search_ms=48
+[EVENT] 48658 matchmaking_ticket_received
+[EVENT] 60695 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 62695 [AUTOTEST] start_matchmaking
+[EVENT] 62696 match_search_start
+[EVENT] 62696 match_found_start
+[EVENT] 62696 matchmaking_request
+[LATENCY] 62744 match_search_ms=48
+[EVENT] 62744 matchmaking_ticket_received
+[EVENT] 74801 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 76801 login_start
+[LATENCY] 76864 login_ms=63
+[EVENT] 76864 [AUTOTEST] start_matchmaking
+[EVENT] 76865 match_search_start
+[EVENT] 76865 match_found_start
+[EVENT] 76865 matchmaking_request
+[EVENT] 76866 login_success
+[LATENCY] 76913 match_search_ms=48
+[EVENT] 76913 matchmaking_ticket_received
+[EVENT] 88991 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 90984 [AUTOTEST] start_matchmaking
+[EVENT] 90985 match_search_start
+[EVENT] 90985 match_found_start
+[EVENT] 90986 matchmaking_request
+[LATENCY] 91033 match_search_ms=48
+[EVENT] 91034 matchmaking_ticket_received
+[EVENT] 103077 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 105077 [AUTOTEST] start_matchmaking
+[EVENT] 105078 match_search_start
+[EVENT] 105078 match_found_start
+[EVENT] 105078 matchmaking_request
+[LATENCY] 105126 match_search_ms=48
+[EVENT] 105126 matchmaking_ticket_received
+[EVENT] 117177 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 119177 [AUTOTEST] start_matchmaking
+[EVENT] 119177 match_search_start
+[EVENT] 119178 match_found_start
+[EVENT] 119178 matchmaking_request
+[LATENCY] 119225 match_search_ms=48
+[EVENT] 119226 matchmaking_ticket_received
+[EVENT] 131269 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 133269 [AUTOTEST] start_matchmaking
+[EVENT] 133270 match_search_start
+[EVENT] 133270 match_found_start
+[EVENT] 133271 matchmaking_request
+[LATENCY] 133318 match_search_ms=48
+[EVENT] 133319 matchmaking_ticket_received
+[EVENT] 145362 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 147362 login_start
+[LATENCY] 147425 login_ms=63
+[EVENT] 147425 [AUTOTEST] start_matchmaking
+[EVENT] 147426 match_search_start
+[EVENT] 147426 match_found_start
+[EVENT] 147427 matchmaking_request
+[EVENT] 147427 login_success
+[LATENCY] 147473 match_search_ms=47
+[EVENT] 147474 matchmaking_ticket_received
+[EVENT] 159552 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 161552 [AUTOTEST] start_matchmaking
+[EVENT] 161553 match_search_start
+[EVENT] 161554 match_found_start
+[EVENT] 161554 matchmaking_request
+[LATENCY] 161601 match_search_ms=48
+[EVENT] 161602 matchmaking_ticket_received
+[EVENT] 173645 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 175638 [AUTOTEST] start_matchmaking
+[EVENT] 175639 match_search_start
+[EVENT] 175639 match_found_start
+[EVENT] 175639 matchmaking_request
+[LATENCY] 175687 match_search_ms=48
+[EVENT] 175687 matchmaking_ticket_received
+[EVENT] 187724 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 189724 [AUTOTEST] start_matchmaking
+[EVENT] 189725 match_search_start
+[EVENT] 189725 match_found_start
+[EVENT] 189725 matchmaking_request
+[LATENCY] 189772 match_search_ms=47
+[EVENT] 189773 matchmaking_ticket_received
+[EVENT] 201809 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 203809 [AUTOTEST] start_matchmaking
+[EVENT] 203810 match_search_start
+[EVENT] 203810 match_found_start
+[EVENT] 203811 matchmaking_request
+[LATENCY] 203858 match_search_ms=48
+[EVENT] 203859 matchmaking_ticket_received
+[EVENT] 215902 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 217902 login_start
+[LATENCY] 217965 login_ms=63
+[EVENT] 217966 [AUTOTEST] start_matchmaking
+[EVENT] 217966 match_search_start
+[EVENT] 217966 match_found_start
+[EVENT] 217967 matchmaking_request
+[EVENT] 217967 login_success
+[LATENCY] 218013 match_search_ms=47
+[EVENT] 218014 matchmaking_ticket_received
+[EVENT] 230099 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 232099 [AUTOTEST] start_matchmaking
+[EVENT] 232100 match_search_start
+[EVENT] 232100 match_found_start
+[EVENT] 232100 matchmaking_request
+[LATENCY] 232148 match_search_ms=48
+[EVENT] 232148 matchmaking_ticket_received
+[EVENT] 244192 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 246192 [AUTOTEST] start_matchmaking
+[EVENT] 246193 match_search_start
+[EVENT] 246193 match_found_start
+[EVENT] 246193 matchmaking_request
+[LATENCY] 246241 match_search_ms=48
+[EVENT] 246241 matchmaking_ticket_received
+[EVENT] 258271 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 260271 [AUTOTEST] start_matchmaking
+[EVENT] 260271 match_search_start
+[EVENT] 260272 match_found_start
+[EVENT] 260272 matchmaking_request
+[LATENCY] 260319 match_search_ms=48
+[EVENT] 260320 matchmaking_ticket_received
+[EVENT] 272363 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 274363 [AUTOTEST] start_matchmaking
+[EVENT] 274364 match_search_start
+[EVENT] 274364 match_found_start
+[EVENT] 274365 matchmaking_request
+[LATENCY] 274412 match_search_ms=48
+[EVENT] 274413 matchmaking_ticket_received
+[EVENT] 286463 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 288463 [AUTOTEST] mode=off

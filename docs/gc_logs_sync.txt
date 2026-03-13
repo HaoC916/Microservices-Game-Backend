@@ -1,0 +1,219 @@
+Godot Engine v3.5.3.stable.official.6c814135b - https://godotengine.org
+OpenGL ES 2.0 Renderer: NVIDIA GeForce RTX 3070/PCIe/SSE2
+ 
+[EVENT] 1878 nakama_host=136.118.146.71
+[EVENT] 1878 telemetry_mode=sync admin_api=136.118.146.71:8000
+[EVENT] 3375 login_start
+[LATENCY] 3514 login_ms=139
+[EVENT] 3514 login_success
+[EVENT] 7048 [AUTOTEST] mode=on iterations=20
+[EVENT] 7106 [AUTOTEST] start_matchmaking
+[EVENT] 7106 match_search_start
+[EVENT] 7107 match_found_start
+[EVENT] 7107 matchmaking_request
+[LATENCY] 7146 match_search_ms=40
+[EVENT] 7146 matchmaking_ticket_received
+[EVENT] 7147 telemetry_sync_start
+[LATENCY] 7217 telemetry_sync_ms=70
+[EVENT] 7217 telemetry_sync_ok
+[EVENT] 19225 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 21225 [AUTOTEST] start_matchmaking
+[EVENT] 21226 match_search_start
+[EVENT] 21227 match_found_start
+[EVENT] 21227 matchmaking_request
+[LATENCY] 21260 match_search_ms=34
+[EVENT] 21261 matchmaking_ticket_received
+[EVENT] 21261 telemetry_sync_start
+[LATENCY] 21329 telemetry_sync_ms=68
+[EVENT] 21330 telemetry_sync_ok
+[EVENT] 33339 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 35339 [AUTOTEST] start_matchmaking
+[EVENT] 35340 match_search_start
+[EVENT] 35340 match_found_start
+[EVENT] 35340 matchmaking_request
+[LATENCY] 35373 match_search_ms=33
+[EVENT] 35374 matchmaking_ticket_received
+[EVENT] 35374 telemetry_sync_start
+[LATENCY] 35443 telemetry_sync_ms=69
+[EVENT] 35443 telemetry_sync_ok
+[EVENT] 47452 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 49452 [AUTOTEST] start_matchmaking
+[EVENT] 49453 match_search_start
+[EVENT] 49453 match_found_start
+[EVENT] 49453 matchmaking_request
+[LATENCY] 49487 match_search_ms=34
+[EVENT] 49487 matchmaking_ticket_received
+[EVENT] 49488 telemetry_sync_start
+[LATENCY] 49556 telemetry_sync_ms=68
+[EVENT] 49557 telemetry_sync_ok
+[EVENT] 61580 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 63580 [AUTOTEST] start_matchmaking
+[EVENT] 63580 match_search_start
+[EVENT] 63581 match_found_start
+[EVENT] 63581 matchmaking_request
+[LATENCY] 63614 match_search_ms=34
+[EVENT] 63615 matchmaking_ticket_received
+[EVENT] 63615 telemetry_sync_start
+[LATENCY] 63684 telemetry_sync_ms=69
+[EVENT] 63684 telemetry_sync_ok
+[EVENT] 75672 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 77680 login_start
+[LATENCY] 77825 login_ms=145
+[EVENT] 77826 [AUTOTEST] start_matchmaking
+[EVENT] 77826 match_search_start
+[EVENT] 77827 match_found_start
+[EVENT] 77827 matchmaking_request
+[EVENT] 77827 login_success
+[LATENCY] 77860 match_search_ms=34
+[EVENT] 77860 matchmaking_ticket_received
+[EVENT] 77861 telemetry_sync_start
+[LATENCY] 77936 telemetry_sync_ms=75
+[EVENT] 77937 telemetry_sync_ok
+[EVENT] 89939 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 91939 [AUTOTEST] start_matchmaking
+[EVENT] 91940 match_search_start
+[EVENT] 91940 match_found_start
+[EVENT] 91940 matchmaking_request
+[LATENCY] 91967 match_search_ms=27
+[EVENT] 91967 matchmaking_ticket_received
+[EVENT] 91968 telemetry_sync_start
+[LATENCY] 92036 telemetry_sync_ms=68
+[EVENT] 92037 telemetry_sync_ok
+[EVENT] 104053 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 106052 [AUTOTEST] start_matchmaking
+[EVENT] 106053 match_search_start
+[EVENT] 106053 match_found_start
+[EVENT] 106054 matchmaking_request
+[LATENCY] 106080 match_search_ms=27
+[EVENT] 106081 matchmaking_ticket_received
+[EVENT] 106081 telemetry_sync_start
+[LATENCY] 106150 telemetry_sync_ms=69
+[EVENT] 106150 telemetry_sync_ok
+[EVENT] 118166 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 120166 [AUTOTEST] start_matchmaking
+[EVENT] 120167 match_search_start
+[EVENT] 120167 match_found_start
+[EVENT] 120167 matchmaking_request
+[LATENCY] 120201 match_search_ms=34
+[EVENT] 120201 matchmaking_ticket_received
+[EVENT] 120201 telemetry_sync_start
+[LATENCY] 120270 telemetry_sync_ms=69
+[EVENT] 120271 telemetry_sync_ok
+[EVENT] 132265 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 134266 [AUTOTEST] start_matchmaking
+[EVENT] 134266 match_search_start
+[EVENT] 134267 match_found_start
+[EVENT] 134267 matchmaking_request
+[LATENCY] 134300 match_search_ms=34
+[EVENT] 134301 matchmaking_ticket_received
+[EVENT] 134301 telemetry_sync_start
+[LATENCY] 134370 telemetry_sync_ms=69
+[EVENT] 134370 telemetry_sync_ok
+[EVENT] 146393 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 148393 login_start
+[LATENCY] 148532 login_ms=139
+[EVENT] 148533 [AUTOTEST] start_matchmaking
+[EVENT] 148533 match_search_start
+[EVENT] 148533 match_found_start
+[EVENT] 148534 matchmaking_request
+[EVENT] 148534 login_success
+[LATENCY] 148567 match_search_ms=34
+[EVENT] 148567 matchmaking_ticket_received
+[EVENT] 148567 telemetry_sync_start
+[LATENCY] 148636 telemetry_sync_ms=69
+[EVENT] 148637 telemetry_sync_ok
+[EVENT] 160632 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 162632 [AUTOTEST] start_matchmaking
+[EVENT] 162633 match_search_start
+[EVENT] 162633 match_found_start
+[EVENT] 162634 matchmaking_request
+[LATENCY] 162667 match_search_ms=34
+[EVENT] 162667 matchmaking_ticket_received
+[EVENT] 162668 telemetry_sync_start
+[LATENCY] 162736 telemetry_sync_ms=68
+[EVENT] 162736 telemetry_sync_ok
+[EVENT] 174745 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 176745 [AUTOTEST] start_matchmaking
+[EVENT] 176746 match_search_start
+[EVENT] 176746 match_found_start
+[EVENT] 176746 matchmaking_request
+[LATENCY] 176780 match_search_ms=34
+[EVENT] 176780 matchmaking_ticket_received
+[EVENT] 176781 telemetry_sync_start
+[LATENCY] 176843 telemetry_sync_ms=62
+[EVENT] 176843 telemetry_sync_ok
+[EVENT] 188866 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 190866 [AUTOTEST] start_matchmaking
+[EVENT] 190867 match_search_start
+[EVENT] 190867 match_found_start
+[EVENT] 190867 matchmaking_request
+[LATENCY] 190901 match_search_ms=34
+[EVENT] 190901 matchmaking_ticket_received
+[EVENT] 190901 telemetry_sync_start
+[LATENCY] 190970 telemetry_sync_ms=69
+[EVENT] 190971 telemetry_sync_ok
+[EVENT] 202965 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 204965 [AUTOTEST] start_matchmaking
+[EVENT] 204966 match_search_start
+[EVENT] 204966 match_found_start
+[EVENT] 204967 matchmaking_request
+[LATENCY] 205000 match_search_ms=34
+[EVENT] 205001 matchmaking_ticket_received
+[EVENT] 205001 telemetry_sync_start
+[LATENCY] 205070 telemetry_sync_ms=69
+[EVENT] 205070 telemetry_sync_ok
+[EVENT] 217093 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 219093 login_start
+[LATENCY] 219239 login_ms=146
+[EVENT] 219239 [AUTOTEST] start_matchmaking
+[EVENT] 219240 match_search_start
+[EVENT] 219240 match_found_start
+[EVENT] 219240 matchmaking_request
+[EVENT] 219241 login_success
+[LATENCY] 219274 match_search_ms=34
+[EVENT] 219274 matchmaking_ticket_received
+[EVENT] 219274 telemetry_sync_start
+[LATENCY] 219343 telemetry_sync_ms=69
+[EVENT] 219343 telemetry_sync_ok
+[EVENT] 231345 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 233345 [AUTOTEST] start_matchmaking
+[EVENT] 233346 match_search_start
+[EVENT] 233346 match_found_start
+[EVENT] 233346 matchmaking_request
+[LATENCY] 233380 match_search_ms=34
+[EVENT] 233381 matchmaking_ticket_received
+[EVENT] 233381 telemetry_sync_start
+[LATENCY] 233450 telemetry_sync_ms=69
+[EVENT] 233450 telemetry_sync_ok
+[EVENT] 245459 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 247459 [AUTOTEST] start_matchmaking
+[EVENT] 247460 match_search_start
+[EVENT] 247460 match_found_start
+[EVENT] 247460 matchmaking_request
+[LATENCY] 247494 match_search_ms=34
+[EVENT] 247494 matchmaking_ticket_received
+[EVENT] 247495 telemetry_sync_start
+[LATENCY] 247563 telemetry_sync_ms=68
+[EVENT] 247564 telemetry_sync_ok
+[EVENT] 259572 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 261572 [AUTOTEST] start_matchmaking
+[EVENT] 261573 match_search_start
+[EVENT] 261573 match_found_start
+[EVENT] 261574 matchmaking_request
+[LATENCY] 261607 match_search_ms=34
+[EVENT] 261608 matchmaking_ticket_received
+[EVENT] 261608 telemetry_sync_start
+[LATENCY] 261677 telemetry_sync_ms=69
+[EVENT] 261677 telemetry_sync_ok
+[EVENT] 273700 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 275700 [AUTOTEST] start_matchmaking
+[EVENT] 275701 match_search_start
+[EVENT] 275701 match_found_start
+[EVENT] 275701 matchmaking_request
+[LATENCY] 275735 match_search_ms=34
+[EVENT] 275735 matchmaking_ticket_received
+[EVENT] 275735 telemetry_sync_start
+[LATENCY] 275804 telemetry_sync_ms=69
+[EVENT] 275805 telemetry_sync_ok
+[EVENT] 287806 [AUTOTEST] timeout_cancel_matchmaking
+[EVENT] 289800 [AUTOTEST] mode=off

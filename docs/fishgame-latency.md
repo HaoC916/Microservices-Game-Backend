@@ -18,6 +18,16 @@
 - `match_found_ms`: time from starting matchmaking to receiving the match-found event from Nakama socket.
 - `create_match_ms`: time from create-match request to match join callback.
 - `join_match_ms`: time from join-match request to match join callback.
+- `telemetry_sync_ms`: extra blocking time spent posting telemetry to `admin-api` (only when `telemetry_mode=sync`).
+
+## Telemetry Schema Note
+- Client telemetry payload includes:
+  - `client_mode` (`off|async|sync` from fishgame client perspective)
+  - `client_tag` (`fishgame`)
+- `admin-api` has its own server config `TELEMETRY_MODE` in `/config`.
+- These two modes can be different and should not be mixed:
+  - `client_mode` = experiment mode on the client critical path
+  - `admin-api TELEMETRY_MODE` = server-side ingestion behavior
 
 ## How To Trigger Metrics
 - Login on Connection screen -> `login_ms`
@@ -59,6 +69,11 @@
 - Set `nakama_host` for your target:
   - local backend, or
   - cloud backend (via `NAKAMA_HOST` env var or `user://nakama_host.txt`).
+- Set telemetry coupling mode:
+  - `user://telemetry_mode.txt` with `off`, `async`, or `sync`, or
+  - edit `telemetry_mode` in `fishgame-godot/autoload/Online.gd`.
+- Optional Admin API host override:
+  - `user://admin_api_host.txt` (falls back to `nakama_host`).
 - Login on Connection screen.
 - Press `F9` on Match screen to run repeated matchmaking samples.
 - Press `F8` to print the absolute log file path.
@@ -66,9 +81,11 @@
 
 ## Recommended Workflow
 - Run one session against local backend and one against cloud backend.
+- Run `telemetry_mode=off` or `async`, then run `telemetry_mode=sync`.
 - Keep test settings consistent (same AutoTest loop and runtime window).
 - Collect both Godot Output snippets and the log file.
-- Aggregate `*_ms` metrics (`login_ms`, `create_account_ms`, `match_search_ms`, `match_found_ms`, `create_match_ms`, `join_match_ms`) for comparison.
+- Compare `match_search_ms` p95/p99 and tails between modes; in `sync` mode, `telemetry_sync_ms` is expected to add temporal coupling overhead.
+- Aggregate `*_ms` metrics (`login_ms`, `create_account_ms`, `match_search_ms`, `match_found_ms`, `create_match_ms`, `join_match_ms`, `telemetry_sync_ms`) for comparison.
 
 ## Note
 - These are client-perceived end-to-end latencies.
