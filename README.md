@@ -20,12 +20,73 @@ Current scope in this repository: local baseline using Docker Compose, initial k
 - `infra/nakama/docker-compose.yml`: Local Nakama + Postgres baseline stack.
 - `infra/nakama/README.md`: Folder-scoped run/verify commands.
 - `infra/nakama/data/`: Local mounted data/config path for Nakama container.
+- `services/admin-api/`: Independent FastAPI microservice for admin/observability checks.
 - `loadtest/k6_smoke.js`: Fixed smoke test (10 VUs, 60s).
 - `loadtest/k6_matrix.js`: Parametric test via `VUS` and `DURATION`.
 - `loadtest/README.md`: k6 usage guide (Docker-first).
 - `docs/experiment-log.md`: Template for recording benchmark runs.
 - `infra/deprecated/teeworlds/`: Archived old scaffold, not active.
 - `THIRD_PARTY_NOTICES.md`: Third-party attribution and dependency notes.
+
+## Microservices Architecture
+Current services and boundaries:
+- `Nakama`: core game backend service.
+- `Postgres`: Nakama persistence service.
+- `admin-api` (FastAPI): independent admin/observability service for experiment checks and telemetry intake.
+
+Communication pattern:
+- `admin-api -> Nakama` uses synchronous HTTP API calls.
+- `admin-api` does **not** access Nakama/Postgres storage directly (no shared-DB coupling).
+- Telemetry endpoint in `admin-api` is intentionally local/in-memory now and will be extended later to event-driven Pub/Sub + serverless function flow.
+
+## Admin API Microservice (FastAPI)
+Why this service exists:
+- Aligns with microservices definition used in the course: an independent server-side service with a clear business boundary (admin/observability).
+- Independently deployable and testable from Nakama/Fish Game.
+- Avoids shared database coupling by calling Nakama over HTTP only.
+
+Relationship diagram:
+```text
+Fish Game (client workload)
+        |
+        v
+      Nakama  ----->  Postgres
+        ^
+        |
+   Admin API (FastAPI)
+```
+
+Endpoint documentation:
+- `GET /health`: liveness check. Returns `{"status":"ok"}`.
+- `GET /config`: current runtime config (Nakama host/ports and telemetry mode).
+- `GET /nakama/console`: Admin API performs a synchronous HTTP call to Nakama Console endpoint and returns upstream `status_code` + `latency_ms`.
+- `GET /nakama/api`: Admin API performs a synchronous HTTP call to Nakama API endpoint and returns upstream `status_code` + `latency_ms`.
+- `POST /telemetry/event`: accepts JSON event payloads, logs to stdout, stores recent events in memory ring buffer.
+- `GET /telemetry/recent`: returns recent in-memory telemetry events.
+- Fish Game telemetry payload includes `client_mode` and `client_tag` so client experiment mode is explicit.
+- `client_mode` is separate from admin-api `TELEMETRY_MODE` config in `/config`.
+
+Run locally (compose) and verify:
+```bash
+cd infra/nakama
+docker compose up -d --build
+curl http://localhost:8000/health
+curl http://localhost:8000/config
+curl http://localhost:8000/nakama/api
+curl http://localhost:8000/nakama/console
+```
+
+Admin API environment variables:
+- `NAKAMA_HOST` (default: `localhost`)
+- `NAKAMA_API_PORT` (default: `7350`)
+- `NAKAMA_CONSOLE_PORT` (default: `7351`)
+- `TELEMETRY_MODE` (default: `async`, allowed: `off|sync|async`)
+- `TELEMETRY_BUFFER_SIZE` (default: `200`)
+
+How this supports course concepts:
+- Independent deployment: `admin-api` can be built/run/tested without modifying Nakama service code.
+- Business boundary: admin health/observability and telemetry capture are separated from gameplay backend logic.
+- Coupling analysis: synchronous Admin API -> Nakama checks model runtime coupling on the critical path, while future async telemetry pipeline reduces coupling.
 
 ## Quick Start (Local Baseline)
 Prereqs: Docker Engine + Docker Compose v2 (`docker compose`).
@@ -71,6 +132,12 @@ Configure endpoint:
   - `nakama_host` (target host/IP)
   - `nakama_port` (default `7350`)
   - `nakama_server_key` (default `defaultkey`)
+  - `admin_api_host` (default same as `nakama_host`)
+  - `admin_api_port` (default `8000`)
+  - `telemetry_mode` (`off|async|sync`, default `async`)
+- Optional file overrides:
+  - `user://telemetry_mode.txt`
+  - `user://admin_api_host.txt`
 
 Hotkeys (MatchScreen):
 - `F8`: print resolved log file path to Godot Output
@@ -84,6 +151,11 @@ Metrics:
 - `match_found_ms`: matchmaking start -> match found event (requires 2 clients)
 - `create_match_ms`: private match create -> join callback latency
 - `join_match_ms`: join match request -> join callback latency
+- `telemetry_sync_ms`: synchronous telemetry POST time (only when `telemetry_mode=sync`)
+
+Coupling experiment note:
+- `telemetry_mode=sync` adds temporal coupling (client waits for telemetry POST to `admin-api`) and may increase `match_search_ms` tail latency (p95/p99).
+- `telemetry_mode=off` or `async` removes that blocking step from the matchmaking critical path.
 
 Logs:
 - Godot Output panel
