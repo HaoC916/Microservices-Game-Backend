@@ -1,0 +1,8 @@
+services:
+  dashboard-api:
+    build:
+      context: ./dashboard-api
+    environment:
+      DASHBOARD_MODE: ${DASHBOARD_MODE:-placeholder}
+    ports:
+      - "8100:8000"
