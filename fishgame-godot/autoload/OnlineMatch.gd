@@ -169,6 +169,25 @@ func start_matchmaking(_nakama_socket: NakamaSocket, data: Dictionary = {}) -> v
 		emit_signal("error", "Unable to join match making pool")
 	else:
 		Online.log_event("matchmaking_ticket_received")
+
+		if Online.telemetry_mode == "sync":
+			Online.mark_start("telemetry_sync")
+			var telemetry_result = Online.send_telemetry_event_sync("matchmaking_ticket_received", {
+				ts_ms = OS.get_ticks_msec(),
+			})
+			if telemetry_result is GDScriptFunctionState:
+				telemetry_result = yield(telemetry_result, "completed")
+			Online.mark_end("telemetry_sync")
+
+			if telemetry_result.get("ok", false):
+				Online.log_event("telemetry_sync_ok")
+			else:
+				Online.log_event("telemetry_sync_fail:%s" % str(telemetry_result.get("error", "unknown")))
+		elif Online.telemetry_mode == "async":
+			Online.send_telemetry_event_async("matchmaking_ticket_received", {
+				ts_ms = OS.get_ticks_msec(),
+			})
+
 		matchmaker_ticket = result.ticket
 		nakama_multiplayer_bridge.start_matchmaking(result)
 
