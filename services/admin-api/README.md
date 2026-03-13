@@ -1,0 +1,40 @@
+# admin-api (FastAPI)
+
+Independent admin/observability microservice for CMPT756 experiments.
+
+## Endpoints
+- `GET /health`
+- `GET /config`
+- `GET /nakama/api`
+- `GET /nakama/console`
+- `POST /telemetry/event`
+- `GET /telemetry/recent`
+
+## Environment Variables
+- `NAKAMA_HOST` (default: `localhost`)
+- `NAKAMA_API_PORT` (default: `7350`)
+- `NAKAMA_CONSOLE_PORT` (default: `7351`)
+- `TELEMETRY_MODE` (default: `async`, allowed: `off|sync|async`)
+- `TELEMETRY_BUFFER_SIZE` (default: `200`)
+
+## Run Locally (Python)
+```bash
+cd services/admin-api
+python -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+## Run with Docker
+```bash
+cd services/admin-api
+docker build -t cmpt756-admin-api .
+docker run --rm -p 8000:8000 -e NAKAMA_HOST=host.docker.internal cmpt756-admin-api
+```
+
+## Run via Compose
+Use `infra/nakama/docker-compose.yml` and start from `infra/nakama`:
+```bash
+docker compose up -d --build
+```

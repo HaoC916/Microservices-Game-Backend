@@ -42,5 +42,18 @@ services:
     volumes:
       - ./data:/nakama/data
 
+  admin-api:
+    build:
+      context: ../../services/admin-api
+    depends_on:
+      - nakama
+    environment:
+      NAKAMA_HOST: nakama
+      NAKAMA_API_PORT: 7350
+      NAKAMA_CONSOLE_PORT: 7351
+      TELEMETRY_MODE: async
+    ports:
+      - "8000:8000"
+
 volumes:
   data:
