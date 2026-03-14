@@ -1,7 +1,9 @@
-# Dashboard Service (Placeholder)
+# Dashboard Service (Standalone)
 Back to root README: [`../README.md`](../README.md)
 
-This is a stub service for future dashboard/reporting APIs.
+This compose runs only `dashboard-api` (FastAPI) so it can be deployed/tested independently.
+
+The dashboard service acts as a lightweight aggregation/query layer for dashboard presentation. In the current project phase, it queries `admin-api` for service status, Nakama reachability, and recent telemetry buffers.
 
 ## Run
 ```bash
@@ -14,7 +16,21 @@ docker compose ps
 ```bash
 # curl http://localhost:8100/health
 # curl http://localhost:8100/metrics
+# curl http://localhost:8100/summary
 ```
+## Environment Variables
+- `DASHBOARD_MODE`: dashboard mode (placeholder by default)
+- `ADMIN_API_BASE_URL`: upstream admin-api base URL
+- `REQUEST_TIMEOUT_SECONDS`: HTTP timeout when querying admin-api
+
+## Current Scope
+- Provide a lightweight dashboard backend for experiment monitoring
+- Aggregate selected upstream information from admin-api
+- Return dashboard-friendly JSON for future UI integration
+- Current Endpoints:
+  - GET /health
+  - GET /metrics
+  - GET /summary
 
 ## Planned Scope
 - Aggregate metrics for experiments:
@@ -33,13 +49,12 @@ See root deployment guide: [`../README.md#gcp-vm-deployment-guide`](../README.md
 1. SSH into Dashboard VM.
 2. Install Docker + Compose v2.
 3. Copy/extract repo onto VM.
-4. (Optional placeholder config) set upstream env values in `.env` for future integration:
+4. Configure upstream admin endpoint:
 ```bash
 cd ~/cmpt756-final-project/dashboard
 cp .env.example .env
-# optional placeholders for future wiring:
+# edit .env and set:
 # ADMIN_API_BASE_URL=http://<admin_vm_external_ip>:8000
-# NAKAMA_API_BASE_URL=http://<nakama_vm_external_ip>:7350
 ```
 5. Start service:
 ```bash
@@ -50,6 +65,14 @@ docker compose ps
 ```bash
 # curl http://localhost:8100/health
 # curl http://localhost:8100/metrics
+# curl http://localhost:8100/summary
+```
+
+7. Validate externally (if firewall allows):
+```bash
+# curl http://<dashboard_vm_external_ip>:8100/health
+# curl http://<dashboard_vm_external_ip>:8100/metrics
+# curl http://<dashboard_vm_external_ip>:8100/summary
 ```
 
 Required firewall ports (target tag `dashboardapi`):

@@ -4,5 +4,7 @@ services:
       context: ./dashboard-api
     environment:
       DASHBOARD_MODE: ${DASHBOARD_MODE:-placeholder}
+      ADMIN_API_BASE_URL: ${ADMIN_API_BASE_URL:-http://host.docker.internal:8000}
+      REQUEST_TIMEOUT_SECONDS: ${REQUEST_TIMEOUT_SECONDS:-2}
     ports:
       - "8100:8000"
