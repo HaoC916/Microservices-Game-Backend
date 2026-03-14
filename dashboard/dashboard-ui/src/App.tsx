@@ -1,0 +1,436 @@
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  Activity,
+  Server,
+  ShieldCheck,
+  WifiOff,
+  RefreshCw,
+  Database,
+  BarChart3,
+  Clock3,
+  AlertTriangle,
+} from "lucide-react";
+
+/**
+ * ============================================================
+ * CMPT 756 - Dashboard UI 
+ * ============================================================
+ *
+ * It fetches data from your backend dashboard-api:
+ *   - GET /health
+ *   - GET /metrics
+ *   - GET /summary
+ *
+ * Current local backend URL:
+ *   http://localhost:8100
+ *
+ * If you deploy the backend elsewhere later, update API_BASE below.
+ */
+
+const API_BASE = "http://localhost:8100";
+const REFRESH_INTERVAL_MS = 10000;
+
+/**
+ * ------------------------------------------------------------
+ * Type definitions
+ * ------------------------------------------------------------
+ * These types describe the shape of the data returned by the API.
+ */
+
+type HealthResponse = {
+  ok?: boolean;
+  service?: string;
+  mode?: string;
+};
+
+type MetricsValues = {
+  online_players?: number;
+  active_matches?: number;
+  matchmaking_queue?: number;
+  peak_online_players?: number;
+  recent_telemetry_events?: number;
+};
+
+type MetricsResponse = {
+  ok?: boolean;
+  service?: string;
+  mode?: string;
+  admin_api_base_url?: string;
+  metrics?: MetricsValues;
+  note?: string;
+};
+
+type UpstreamItem = {
+  ok?: boolean;
+  url?: string;
+  status_code?: number | null;
+  data?: any;
+  error?: string;
+};
+
+type SummaryResponse = {
+  ok?: boolean;
+  service?: string;
+  mode?: string;
+  upstreams?: {
+    admin_health?: UpstreamItem;
+    admin_config?: UpstreamItem;
+    nakama_api?: UpstreamItem;
+    nakama_console?: UpstreamItem;
+    recent_telemetry?: UpstreamItem;
+  };
+};
+
+/**
+ * ------------------------------------------------------------
+ * Small helper functions
+ * ------------------------------------------------------------
+ */
+
+/**
+ * Fetch JSON from dashboard-api.
+ *
+ * If the backend returns an HTTP error code such as 502,
+ * fetch() itself still succeeds, so we still parse the JSON body.
+ */
+async function fetchJson(path: string) {
+  const response = await fetch(`${API_BASE}${path}`);
+  return response.json();
+}
+
+/**
+ * Fetch all dashboard data at once.
+ * Promise.all allows the browser to request all endpoints in parallel
+ */
+async function fetchDashboardData() {
+  const [health, metrics, summary] = await Promise.all([
+    fetchJson("/health"),
+    fetchJson("/metrics"),
+    fetchJson("/summary"),
+  ]);
+
+  return { health, metrics, summary };
+}
+
+/**
+ * Convert a boolean status into a small style label.
+ */
+function getStatusStyle(ok: boolean) {
+  return ok
+    ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+    : "bg-amber-100 text-amber-700 border-amber-200";
+}
+
+/**
+ * ------------------------------------------------------------
+ * Reusable UI components
+ * ------------------------------------------------------------
+ */
+
+function Panel({
+  title,
+  children,
+  right,
+}: {
+  title: string;
+  children: React.ReactNode;
+  right?: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-6 py-4">
+        <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+        {right}
+      </div>
+      <div className="p-6">{children}</div>
+    </div>
+  );
+}
+
+function StatusBadge({ ok }: { ok: boolean }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${getStatusStyle(ok)}`}
+    >
+      {ok ? "Healthy" : "Degraded"}
+    </span>
+  );
+}
+
+function IconBox({ children }: { children: React.ReactNode }) {
+  return <div className="rounded-2xl bg-slate-100 p-3 text-slate-700">{children}</div>;
+}
+
+function MetricCard({
+  title,
+  value,
+  subtitle,
+  icon,
+}: {
+  title: string;
+  value: string | number;
+  subtitle?: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="text-sm text-slate-500">{title}</div>
+          <div className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">{value}</div>
+          {subtitle ? <div className="mt-1 text-sm text-slate-500">{subtitle}</div> : null}
+        </div>
+        <IconBox>{icon}</IconBox>
+      </div>
+    </div>
+  );
+}
+
+function SimpleMetricBox({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-2xl bg-slate-100 p-4">
+      <div className="text-sm text-slate-500">{label}</div>
+      <div className="mt-2 text-2xl font-semibold text-slate-900">{value}</div>
+    </div>
+  );
+}
+
+function UpstreamRow({ name, item }: { name: string; item?: UpstreamItem }) {
+  const ok = !!item?.ok;
+  const status = item?.status_code ?? "-";
+  const url = item?.url ?? "-";
+  const error = item?.error || item?.data?.error;
+
+  return (
+    <div className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 p-4 lg:grid-cols-[180px_100px_1fr]">
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-medium text-slate-900">{name}</span>
+        <StatusBadge ok={ok} />
+      </div>
+
+      <div className="text-sm text-slate-600">HTTP: {status}</div>
+
+      <div className="min-w-0">
+        <div className="truncate text-sm text-slate-500">{url}</div>
+        {error ? <div className="mt-1 break-words text-sm text-red-600">{error}</div> : null}
+      </div>
+    </div>
+  );
+}
+
+function ErrorBanner({ message }: { message: string }) {
+  return (
+    <div className="mb-6 rounded-3xl border border-red-200 bg-red-50 p-4 text-red-700 shadow-sm">
+      <div className="flex items-start gap-2">
+        <AlertTriangle className="mt-0.5 h-5 w-5" />
+        <span>{message}</span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * ------------------------------------------------------------
+ * Main page component
+ * ------------------------------------------------------------
+ * This component only manages:
+ *   - state
+ *   - loading
+ *   - errors
+ *   - refresh behavior
+ *   - top-level layout
+ *
+ * The detailed UI blocks are delegated to small components above.
+ */
+
+export default function DashboardPage() {
+  // State for backend responses
+  const [health, setHealth] = useState<HealthResponse | null>(null);
+  const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
+  const [summary, setSummary] = useState<SummaryResponse | null>(null);
+
+  // State for UI behavior
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState("");
+
+  /**
+   * Load all dashboard data from the backend.
+   *
+   * This function is reused by:
+   *   - initial page load
+   *   - auto-refresh timer
+   *   - manual refresh button
+   */
+  const loadData = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const data = await fetchDashboardData();
+      setHealth(data.health);
+      setMetrics(data.metrics);
+      setSummary(data.summary);
+      setLastUpdated(new Date().toLocaleString());
+    } catch (err: any) {
+      setError(err?.message || "Failed to fetch dashboard data.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Load data once when the page starts,
+   * and then refresh automatically every 10 seconds.
+   */
+  useEffect(() => {
+    loadData();
+
+    const timer = setInterval(() => {
+      loadData();
+    }, REFRESH_INTERVAL_MS);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  /**
+   * Derived values make the JSX cleaner.
+   * Instead of writing long optional chains everywhere,
+   * we calculate the important values once here.
+   */
+  const derived = useMemo(() => {
+    const metricValues = metrics?.metrics || {};
+    const upstreams = summary?.upstreams || {};
+
+    return {
+      metricValues,
+      upstreams,
+      dashboardOnline: !!health?.ok,
+      dashboardMode: health?.mode || "—",
+      recentTelemetryCount: metricValues.recent_telemetry_events ?? 0,
+      adminOk: !!upstreams.admin_health?.ok,
+      nakamaApiOk: !!upstreams.nakama_api?.ok,
+      nakamaConsoleOk: !!upstreams.nakama_console?.ok,
+      telemetryPreview: upstreams.recent_telemetry?.data || { count: 0, events: [] },
+    };
+  }, [health, metrics, summary]);
+
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+      <div className="mx-auto max-w-7xl px-6 py-8">
+        {/* Page header */}
+        <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="text-sm font-medium uppercase tracking-wide text-slate-500">CMPT 756 Project</div>
+            <h1 className="mt-2 text-4xl font-semibold tracking-tight">Game Service Dashboard</h1>
+            <p className="mt-2 max-w-2xl text-base text-slate-600">
+              Lightweight monitoring page for dashboard-api, admin-api telemetry, and Nakama upstream checks.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
+              <div className="flex items-center gap-2">
+                <Clock3 className="h-4 w-4" />
+                <span>Last updated: {lastUpdated || "—"}</span>
+              </div>
+            </div>
+
+            <button
+              onClick={loadData}
+              className="inline-flex items-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
+            </button>
+          </div>
+        </div>
+
+        {/* Error banner */}
+        {error ? <ErrorBanner message={error} /> : null}
+
+        {/* Top metrics row */}
+        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            title="Dashboard Service"
+            value={loading ? "Loading" : derived.dashboardOnline ? "Online" : "Offline"}
+            subtitle={`Mode: ${derived.dashboardMode}`}
+            icon={<BarChart3 className="h-6 w-6" />}
+          />
+
+          <MetricCard
+            title="Recent Telemetry"
+            value={derived.recentTelemetryCount}
+            subtitle="Buffered events from admin-api"
+            icon={<Activity className="h-6 w-6" />}
+          />
+
+          <MetricCard
+            title="Nakama API"
+            value={derived.nakamaApiOk ? "Reachable" : "Unavailable"}
+            subtitle="Checked via admin-api"
+            icon={derived.nakamaApiOk ? <Server className="h-6 w-6" /> : <WifiOff className="h-6 w-6" />}
+          />
+
+          <MetricCard
+            title="Nakama Console"
+            value={derived.nakamaConsoleOk ? "Reachable" : "Unavailable"}
+            subtitle="Checked via admin-api"
+            icon={derived.nakamaConsoleOk ? <ShieldCheck className="h-6 w-6" /> : <WifiOff className="h-6 w-6" />}
+          />
+        </div>
+
+        {/* Main content area */}
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+          {/* Left: upstream status */}
+          <Panel title="Upstream Status Summary" right={<StatusBadge ok={!!summary?.ok} />}>
+            <div className="space-y-3">
+              <UpstreamRow name="Admin Health" item={derived.upstreams.admin_health} />
+              <UpstreamRow name="Admin Config" item={derived.upstreams.admin_config} />
+              <UpstreamRow name="Nakama API" item={derived.upstreams.nakama_api} />
+              <UpstreamRow name="Nakama Console" item={derived.upstreams.nakama_console} />
+              <UpstreamRow name="Recent Telemetry" item={derived.upstreams.recent_telemetry} />
+            </div>
+          </Panel>
+
+          {/* Right: secondary panels */}
+          <div className="space-y-6">
+            <Panel title="Gameplay Metrics">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <SimpleMetricBox label="Online Players" value={derived.metricValues.online_players ?? 0} />
+                <SimpleMetricBox label="Active Matches" value={derived.metricValues.active_matches ?? 0} />
+                <SimpleMetricBox label="Queue Depth" value={derived.metricValues.matchmaking_queue ?? 0} />
+                <SimpleMetricBox label="Peak Online" value={derived.metricValues.peak_online_players ?? 0} />
+              </div>
+            </Panel>
+
+            <Panel title="Telemetry Preview">
+              <div className="overflow-auto rounded-2xl bg-slate-950 p-4 text-sm text-slate-100">
+                <pre className="whitespace-pre-wrap break-words">
+                  {JSON.stringify(derived.telemetryPreview, null, 2)}
+                </pre>
+              </div>
+            </Panel>
+
+            <Panel title="Service Notes">
+              <div className="space-y-2 text-sm text-slate-600">
+                <div className="flex items-start gap-2">
+                  <Database className="mt-0.5 h-4 w-4" />
+                  <span>
+                    Current gameplay metrics are placeholders and can be replaced with real aggregates later.
+                  </span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Server className="mt-0.5 h-4 w-4" />
+                  <span>
+                    Summary may show a degraded state when Nakama is not running locally on ports 7350 and 7351.
+                  </span>
+                </div>
+              </div>
+            </Panel>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -4,8 +4,31 @@ from typing import Any, Dict
 import requests
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="dashboard-api", version="0.1.0")
+
+# --------------------------------------------------
+# CORS configuration
+# --------------------------------------------------
+# The frontend UI runs on a different local port (for example 5173),
+# so the browser treats requests to dashboard-api as cross-origin.
+# Without CORS, fetch() from the browser will fail even if curl works.
+#
+# For local development, we allow the Vite dev server origin.
+# If deploy the frontend elsewhere, add that origin here.
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # ----------------------------
