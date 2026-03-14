@@ -27,20 +27,23 @@ npm run dev
 ```
 
 ## Default Local URL
-```bash
 Default Local URL
 By default, Vite serves the UI at:
+```bash
 http://localhost:5173
 ```
 
 ## Backend Dependency
-```bash
+
 This UI expects the backend dashboard API to be available at:
+```bash
 http://localhost:8100
-The API base URL is currently defined in src/App.tsx:
-const API_BASE = "http://localhost:8100";
-If the backend is deployed elsewhere, update this value.
 ```
+The API base URL is currently defined in src/App.tsx:
+```bash
+const API_BASE = "http://localhost:8100";
+```
+If the backend is deployed elsewhere, update this value.
 
 ## Recommended Local Startup Order
 ### Terminal 1: Start admin-api
@@ -64,18 +67,13 @@ uvicorn app.main:app --host 0.0.0.0 --port 8100
 cd dashboard/dashboard-ui
 npm install
 npm run dev
-Then open:
+- Then open:
 http://localhost:5173
 ```
 
-### Local Validation Example
-```bash
-You can manually add a telemetry event and observe the UI update:
-curl -X POST http://localhost:8000/telemetry/event \
-  -H "Content-Type: application/json" \
-  -d '{"event_type":"player_login","player_id":"p2","source":"ui-test"}'
-Expected result:
-- Recent Telemetry count increases
-- Telemetry Preview shows the new event
+### Notes
+```text
+The page automatically refreshes every 10 seconds
+Current gameplay metrics are placeholders
+This UI is currently intended for local development and demonstration
 ```
-
