@@ -81,16 +81,20 @@ uvicorn app.main:app --host 0.0.0.0 --port 8100
 cd dashboard/dashboard-ui
 npm install
 npm run dev
+```
 - Then open:
+```bash
 http://localhost:5173
 ```
 
 ### Local Validation Example
-```bash
 You can manually add a telemetry event and observe the UI update:
+```bash
 curl -X POST http://localhost:8000/telemetry/event \
   -H "Content-Type: application/json" \
   -d '{"event_type":"player_login","player_id":"p2","source":"ui-test"}'
+```
+```text
 Expected result:
 - Recent Telemetry count increases
 - Telemetry Preview shows the new event

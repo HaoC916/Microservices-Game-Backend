@@ -67,7 +67,9 @@ uvicorn app.main:app --host 0.0.0.0 --port 8100
 cd dashboard/dashboard-ui
 npm install
 npm run dev
+```
 - Then open:
+```bash
 http://localhost:5173
 ```
 

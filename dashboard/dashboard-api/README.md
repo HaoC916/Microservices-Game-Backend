@@ -75,8 +75,8 @@ curl http://localhost:8100/summary
 ```
 
 ## Notes
-```text
 dashboard-api depends on admin-api for current upstream aggregation
+
 If admin-api is unavailable, dashboard data will be incomplete
+
 If Nakama is unavailable, summary output may show degraded upstream status
-```
