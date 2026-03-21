@@ -1,0 +1,8 @@
+services:
+  telemetry-api:
+    build:
+      context: ./telemetry-api
+    environment:
+      TELEMETRY_BUFFER_SIZE: ${TELEMETRY_BUFFER_SIZE:-200}
+    ports:
+      - "8200:8200"
