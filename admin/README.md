@@ -3,6 +3,12 @@ Back to root README: [`../README.md`](../README.md)
 
 This compose runs only `admin-api` (FastAPI) so it can be deployed/tested independently from Nakama.
 
+The admin service is responsible for:
+
+- checking Nakama reachability
+- exposing admin/config endpoints
+- acting as a telemetry control/forwarding gateway for coupling experiments
+
 ## Run
 ```bash
 cd admin
@@ -21,13 +27,25 @@ curl http://localhost:8000/config
 - `NAKAMA_API_PORT`: Nakama API port (`7350` by default)
 - `NAKAMA_CONSOLE_PORT`: Nakama Console port (`7351` by default)
 - `TELEMETRY_MODE`: admin ingestion mode (`off|sync|async`)
-- `TELEMETRY_BUFFER_SIZE`: in-memory recent event buffer size
+- `TELEMETRY_API_BASE_URL`: base URL of standalone telemetry service
+
+## Telemetry Behavior
+POST /telemetry/event is still exposed by admin-api, but admin-api no longer stores telemetry in memory.
+Instead, its behavior depends on TELEMETRY_MODE:
+- `off`: admin ignores telemetry and returns accepted: false
+- `sync`: admin forwards telemetry to the standalone telemetry service and waits for the response, this keeps telemetry on the critical path
+- `async`: admin returns immediately without waiting; in the current simplified version, async is a non-blocking placeholder and does not yet perform background forwarding
+This separation is intentional for the coupling experiment.
 
 ## Telemetry Payload Note
-When fishgame posts telemetry, payload includes:
-- `client_mode` (fishgame experiment mode)
-- `client_tag` (`fishgame`)
-
+When Fish Game posts telemetry to admin-api, the original client payload is preserved under:
+```text
+{
+  "payload": {
+    ...
+  }
+}
+```
 This is separate from admin-api’s own `TELEMETRY_MODE`.
 
 ## Deploy on GCP VM (Admin VM)

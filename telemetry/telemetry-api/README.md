@@ -1,6 +1,6 @@
 # telemetry-api (FastAPI)
 
-Independent admin/observability microservice for CMPT756 experiments.
+Independent telemetry/observability microservice for CMPT756 experiments.
 
 ## Endpoints
 - `GET /health`

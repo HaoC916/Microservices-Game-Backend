@@ -8,14 +8,13 @@ Independent admin/observability microservice for CMPT756 experiments.
 - `GET /nakama/api`
 - `GET /nakama/console`
 - `POST /telemetry/event`
-- `GET /telemetry/recent`
 
 ## Environment Variables
 - `NAKAMA_HOST` (default: `localhost`)
 - `NAKAMA_API_PORT` (default: `7350`)
 - `NAKAMA_CONSOLE_PORT` (default: `7351`)
 - `TELEMETRY_MODE` (default: `async`, allowed: `off|sync|async`)
-- `TELEMETRY_BUFFER_SIZE` (default: `200`)
+- `TELEMETRY_API_BASE_URL`: base URL of standalone telemetry service
 
 ## Run Locally (Python)
 ```bash
