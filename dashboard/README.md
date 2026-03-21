@@ -71,6 +71,9 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 cd dashboard/dashboard-api
 source .venv/bin/activate
 export ADMIN_API_BASE_URL=http://localhost:8000
+export TELEMETRY_API_BASE_URL=http://localhost:8200
+export NAKAMA_API_BASE_URL=http://localhost:7350
+export NAKAMA_CONSOLE_BASE_URL=http://localhost:7351
 export DASHBOARD_MODE=placeholder
 export REQUEST_TIMEOUT_SECONDS=2
 uvicorn app.main:app --host 0.0.0.0 --port 8100

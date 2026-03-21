@@ -16,7 +16,7 @@ import {
  * CMPT 756 - Dashboard UI 
  * ============================================================
  *
- * It fetches data from your backend dashboard-api:
+ * It fetches data from backend dashboard-api:
  *   - GET /health
  *   - GET /metrics
  *   - GET /summary
@@ -24,7 +24,7 @@ import {
  * Current local backend URL:
  *   http://localhost:8100
  *
- * If you deploy the backend elsewhere later, update API_BASE below.
+ * If deploy the backend elsewhere later, update API_BASE below.
  */
 
 const API_BASE = "http://localhost:8100";
@@ -75,9 +75,11 @@ type SummaryResponse = {
   upstreams?: {
     admin_health?: UpstreamItem;
     admin_config?: UpstreamItem;
+    telemetry_health?: UpstreamItem;
+    telemetry_recent?: UpstreamItem;
+    telemetry_summary?: UpstreamItem;
     nakama_api?: UpstreamItem;
-    nakama_console?: UpstreamItem;
-    recent_telemetry?: UpstreamItem;
+    //nakama_console?: UpstreamItem;
   };
 };
 
@@ -309,9 +311,10 @@ export default function DashboardPage() {
       dashboardMode: health?.mode || "—",
       recentTelemetryCount: metricValues.recent_telemetry_events ?? 0,
       adminOk: !!upstreams.admin_health?.ok,
+      telemetryHealthOk: !!upstreams.telemetry_health?.ok,
       nakamaApiOk: !!upstreams.nakama_api?.ok,
-      nakamaConsoleOk: !!upstreams.nakama_console?.ok,
-      telemetryPreview: upstreams.recent_telemetry?.data || { count: 0, events: [] },
+      //nakamaConsoleOk: !!upstreams.nakama_console?.ok,
+      telemetryPreview: upstreams.telemetry_recent?.data || { count: 0, events: [] },
     };
   }, [health, metrics, summary]);
 
@@ -324,7 +327,7 @@ export default function DashboardPage() {
             <div className="text-sm font-medium uppercase tracking-wide text-slate-500">CMPT 756 Project</div>
             <h1 className="mt-2 text-4xl font-semibold tracking-tight">Game Service Dashboard</h1>
             <p className="mt-2 max-w-2xl text-base text-slate-600">
-              Lightweight monitoring page for dashboard-api, admin-api telemetry, and Nakama upstream checks.
+              Monitoring page for dashboard-api, admin-api, telemetry-api, and Nakama.
             </p>
           </div>
 
@@ -359,25 +362,34 @@ export default function DashboardPage() {
           />
 
           <MetricCard
+            title="Telemetry Service"
+            value={derived.telemetryHealthOk ? "Reachable" : "Unavailable"}
+            subtitle="Checked by dashboard-api"
+            icon={derived.telemetryHealthOk ? <ShieldCheck className="h-6 w-6" /> : <WifiOff className="h-6 w-6" />}
+          />
+
+          <MetricCard
             title="Recent Telemetry"
             value={derived.recentTelemetryCount}
-            subtitle="Buffered events from admin-api"
+            subtitle="Read from telemetry-api"
             icon={<Activity className="h-6 w-6" />}
           />
 
           <MetricCard
             title="Nakama API"
             value={derived.nakamaApiOk ? "Reachable" : "Unavailable"}
-            subtitle="Checked via admin-api"
+            subtitle="Checked by dashboard-api"
             icon={derived.nakamaApiOk ? <Server className="h-6 w-6" /> : <WifiOff className="h-6 w-6" />}
           />
 
+          {/*
           <MetricCard
             title="Nakama Console"
             value={derived.nakamaConsoleOk ? "Reachable" : "Unavailable"}
             subtitle="Checked via admin-api"
             icon={derived.nakamaConsoleOk ? <ShieldCheck className="h-6 w-6" /> : <WifiOff className="h-6 w-6" />}
           />
+          */}
         </div>
 
         {/* Main content area */}
@@ -387,9 +399,11 @@ export default function DashboardPage() {
             <div className="space-y-3">
               <UpstreamRow name="Admin Health" item={derived.upstreams.admin_health} />
               <UpstreamRow name="Admin Config" item={derived.upstreams.admin_config} />
+              <UpstreamRow name="Telemetry Health" item={derived.upstreams.telemetry_health} />
+              <UpstreamRow name="Telemetry Recent" item={derived.upstreams.telemetry_recent} />
+              <UpstreamRow name="Telemetry Summary" item={derived.upstreams.telemetry_summary} />
               <UpstreamRow name="Nakama API" item={derived.upstreams.nakama_api} />
-              <UpstreamRow name="Nakama Console" item={derived.upstreams.nakama_console} />
-              <UpstreamRow name="Recent Telemetry" item={derived.upstreams.recent_telemetry} />
+              {/* <UpstreamRow name="Nakama Console" item={derived.upstreams.nakama_console} /> */}
             </div>
           </Panel>
 
