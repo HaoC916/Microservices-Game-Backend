@@ -103,6 +103,24 @@ async function fetchJson(path: string) {
 }
 
 /**
+ * Send a POST request with JSON body to dashboard-api.
+ * 
+ * The backend can use this for actions that change state (telemetry mode).
+ * Useful for remote config or control.
+ */
+async function postJson(path: string, body: unknown) {
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  return response.json();
+}
+
+/**
  * Fetch all dashboard data at once.
  * Promise.all allows the browser to request all endpoints in parallel
  */
@@ -179,7 +197,7 @@ function MetricCard({
 }: {
   title: string;
   value: string | number;
-  subtitle?: string;
+  subtitle?: React.ReactNode;
   icon: React.ReactNode;
 }) {
   return (
@@ -192,6 +210,40 @@ function MetricCard({
         </div>
         <IconBox>{icon}</IconBox>
       </div>
+    </div>
+  );
+}
+
+function ModeSelector({
+    currentMode,
+    disabled,
+    onChange,
+  }: {
+    currentMode: string;
+    disabled?: boolean;
+    onChange: (mode: "off" | "sync" | "async") => void;
+  }) {
+  const modes: Array<"off" | "sync" | "async"> = ["off", "sync", "async"];
+
+  return (
+    <div className="mt-2 flex flex-wrap gap-2">
+      {modes.map((mode) => {
+        const active = currentMode === mode;
+        return (
+          <button
+            key={mode}
+            disabled={disabled}
+            onClick={() => onChange(mode)}
+            className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+              active
+                ? "border-slate-900 bg-slate-900 text-white"
+                : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+            } ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
+          >
+            {mode}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -263,6 +315,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState("");
+  const [changingMode, setChangingMode] = useState(false);
 
   /**
    * Load all dashboard data from the backend.
@@ -302,6 +355,23 @@ export default function DashboardPage() {
 
     return () => clearInterval(timer);
   }, []);
+
+  /**
+   *  Handle changing telemetry mode via admin-api.
+   * 
+   */
+  const handleModeChange = async (mode: "off" | "sync" | "async") => {
+    setChangingMode(true);
+
+    try {
+      await postJson("/telemetry/mode", { mode });
+      await loadData();
+    } catch (err: any) {
+      setError(err?.message || "Failed to update telemetry mode.");
+    } finally {
+      setChangingMode(false);
+    }
+  };
 
   /**
    * Derived values make the JSX cleaner.
@@ -381,9 +451,22 @@ export default function DashboardPage() {
           <MetricCard
             title="Admin Service"
             value={getLatencyDisplay(derived.adminOk, derived.adminHealthLatencyMs)}
-            subtitle={derived.adminOk ? `Mode: ${derived.telemetryMode}` : "Mode unavailable"}
+            subtitle={
+              derived.adminOk ? (
+                <div>
+                  <div className="text-sm text-slate-500">Current mode: {derived.telemetryMode}</div>
+                  <ModeSelector
+                    currentMode={derived.telemetryMode}
+                    disabled={changingMode}
+                    onChange={handleModeChange}
+                  />
+                </div>
+              ) : (
+                "Mode unavailable"
+              )
+            }
             icon={derived.adminOk ? <ShieldCheck className="h-6 w-6" /> : <WifiOff className="h-6 w-6" />}
-          />
+          /> 
 
           <MetricCard
             title="Telemetry Service"
@@ -417,7 +500,13 @@ export default function DashboardPage() {
             subtitle="Read from telemetry-api"
             icon={<Activity className="h-6 w-6" />}
           />
-       
+            
+          <MetricCard
+            title="Admin Service"
+            value={getLatencyDisplay(derived.adminOk, derived.adminHealthLatencyMs)}
+            subtitle={derived.adminOk ? `Mode: ${derived.telemetryMode}` : "Mode unavailable"}
+            icon={derived.adminOk ? <ShieldCheck className="h-6 w-6" /> : <WifiOff className="h-6 w-6" />}
+          />
 
           <MetricCard
             title="Nakama API"
@@ -441,6 +530,7 @@ export default function DashboardPage() {
           />
           */}
         </div>
+
 
         {/* Main content area */}
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
@@ -487,7 +577,7 @@ export default function DashboardPage() {
                 <div className="flex items-start gap-2">
                   <Server className="mt-0.5 h-4 w-4" />
                   <span>
-                    Summary may show a degraded state when Nakama is not running locally on ports 7350 and 7351.
+                    Summary may show a degraded state when Nakama API is not reachable on port 7350, or when admin-api / telemetry-api are unavailable.
                   </span>
                 </div>
               </div>

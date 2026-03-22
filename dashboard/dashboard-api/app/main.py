@@ -6,6 +6,7 @@ import requests
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 app = FastAPI(title="dashboard-api", version="0.1.0")
 
@@ -96,6 +97,9 @@ def _request_timeout_seconds() -> float:
 # This helper sends GET requests to any service base URL
 # and returns a normalized JSON structure.
 
+class TelemetryModeRequest(BaseModel):
+    mode: str
+
 def _service_get(base_url: str, path: str = "") -> Dict[str, Any]:
     url = f"{base_url}{path}"
     start = time.monotonic()
@@ -132,6 +136,31 @@ def _service_get(base_url: str, path: str = "") -> Dict[str, Any]:
 def _admin_get(path: str) -> Dict[str, Any]:
     return _service_get(_admin_api_base_url(), path)
 
+
+def _admin_post(path: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    url = f"{_admin_api_base_url()}{path}"
+    start = time.monotonic()
+
+    try:
+        response = requests.post(url, json=payload, timeout=_request_timeout_seconds())
+        latency_ms = int((time.monotonic() - start) * 1000)
+        return {
+            "ok": response.ok,
+            "url": url,
+            "status_code": response.status_code,
+            "latency_ms": latency_ms,
+            "data": response.json(),
+        }
+    except requests.RequestException as exc:
+        latency_ms = int((time.monotonic() - start) * 1000)
+        return {
+            "ok": False,
+            "url": url,
+            "status_code": None,
+            "latency_ms": latency_ms,
+            "error": str(exc),
+        }
+    
 def _telemetry_get(path: str) -> Dict[str, Any]:
     return _service_get(_telemetry_api_base_url(), path)
 
@@ -189,6 +218,28 @@ def metrics() -> Dict[str, Any]:
         # "note": "placeholder gameplay metrics; telemetry data is now read from telemetry-api",
     }
 
+@app.get("/telemetry/mode")
+def get_telemetry_mode() -> JSONResponse:
+    result = _admin_get("/telemetry/mode")
+    status_code = 200 if result.get("ok") else 502
+    return JSONResponse(result, status_code=status_code)
+
+@app.post("/telemetry/mode")
+def set_telemetry_mode(request: TelemetryModeRequest) -> JSONResponse:
+    mode = request.mode.lower()
+    if mode not in ("off", "sync", "async"):
+        return JSONResponse(
+            {
+                "ok": False,
+                "error": "invalid_mode",
+                "message": "Mode must be one of: off, sync, async",
+            },
+            status_code=400,
+        )
+
+    result = _admin_post("/telemetry/mode", {"mode": mode})
+    status_code = 200 if result.get("ok") else 502
+    return JSONResponse(result, status_code=status_code)
 
 @app.get("/summary")
 def summary() -> JSONResponse:
