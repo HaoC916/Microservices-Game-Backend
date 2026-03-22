@@ -4,16 +4,21 @@ import time
 #from typing import Any, Deque, Dict, List
 from typing import Any, Dict
 
-
 import requests
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 app = FastAPI(title="admin-api", version="0.1.0")
 
 REQUEST_TIMEOUT_SECONDS = 2.0
+RUNTIME_TELEMETRY_MODE = None  
 #BUFFER_SIZE = int(os.getenv("TELEMETRY_BUFFER_SIZE", "200"))
 #RECENT_EVENTS: Deque[Dict[str, Any]] = deque(maxlen=BUFFER_SIZE)
+
+
+class TelemetryModeRequest(BaseModel):
+    mode: str
 
 
 def _env_str(name: str, default: str) -> str:
@@ -36,7 +41,7 @@ def _env_int(name: str, default: int) -> int:
 # - sync  : forward to telemetry-api and wait for response
 # - async : simplified version, return immediately
 def _telemetry_mode() -> str:
-    mode = _env_str("TELEMETRY_MODE", "async").lower()
+    mode = RUNTIME_TELEMETRY_MODE or _env_str("TELEMETRY_MODE", "async").lower()
     if mode not in ("off", "sync", "async"):
         return "async"
     return mode
@@ -155,8 +160,25 @@ def nakama_console() -> JSONResponse:
     return JSONResponse(result, status_code=status)
 
 
+@app.get("/telemetry/mode")
+def telemetry_mode() -> Dict[str, str]:
+    if RUNTIME_TELEMETRY_MODE is not None:
+        return {"mode": RUNTIME_TELEMETRY_MODE, "source": "runtime"}
+    return {"mode": _env_str("TELEMETRY_MODE", "async").lower(), "source": "env"}
+
+@app.post("/telemetry/mode")
+def set_telemetry_mode(request: TelemetryModeRequest) -> Dict[str, str]:
+    global RUNTIME_TELEMETRY_MODE
+    mode = request.mode.lower()
+    if mode not in ("off", "sync", "async"):
+        return {"error": "invalid_mode", "message": "Mode must be one of: off, sync, async"}
+
+    RUNTIME_TELEMETRY_MODE = mode
+    return {"mode": RUNTIME_TELEMETRY_MODE, "source": "runtime"}
+
 @app.post("/telemetry/event")
-def telemetry_event(payload: Dict[str, Any]) -> Dict[str, Any]:
+#def telemetry_event(payload: Dict[str, Any]) -> Dict[str, Any]:
+def telemetry_event(payload: Dict[str, Any], background_tasks: BackgroundTasks) -> Dict[str, Any]:
     mode = _telemetry_mode()
     event = {
         "received_ts_ms": int(time.time() * 1000),
@@ -186,10 +208,12 @@ def telemetry_event(payload: Dict[str, Any]) -> Dict[str, Any]:
     # Mode 3: async
     # return immediately without waiting for telemetry-api.
     # Later this can be improved with BackgroundTasks.
+    background_tasks.add_task(_forward_telemetry_event, event)
     return {
         "accepted": True,
         "mode": mode,
-        "forwarded": False,
+        "forwarded": True,
+        "delivery": "background",
     }
 
     #RECENT_EVENTS.append(event)
