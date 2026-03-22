@@ -1,4 +1,5 @@
 import os
+import time
 from typing import Any, Dict
 
 import requests
@@ -97,29 +98,37 @@ def _request_timeout_seconds() -> float:
 
 def _service_get(base_url: str, path: str = "") -> Dict[str, Any]:
     url = f"{base_url}{path}"
+    start = time.monotonic()
+
     try:
         response = requests.get(url, timeout=_request_timeout_seconds())
+        latency_ms = int((time.monotonic() - start) * 1000)
         return {
             "ok": response.ok,
             "url": url,
             "status_code": response.status_code,
+            "latency_ms": latency_ms,
             "data": response.json(),
         }
     except requests.RequestException as exc:
+        latency_ms = int((time.monotonic() - start) * 1000)
         return {
             "ok": False,
             "url": url,
             "status_code": None,
+            "latency_ms": latency_ms,
             "error": str(exc),
         }
     except ValueError as exc:
+        latency_ms = int((time.monotonic() - start) * 1000)
         return {
             "ok": False,
             "url": url,
             "status_code": response.status_code if "response" in locals() else None,
+            "latency_ms": latency_ms,
             "error": f"Invalid JSON response: {exc}",
         }
-
+    
 def _admin_get(path: str) -> Dict[str, Any]:
     return _service_get(_admin_api_base_url(), path)
 
@@ -183,23 +192,35 @@ def metrics() -> Dict[str, Any]:
 
 @app.get("/summary")
 def summary() -> JSONResponse:
+    admin_health = _admin_get("/health")
+    admin_config = _admin_get("/config")
+    telemetry_health = _telemetry_get("/health")
+    telemetry_recent = _telemetry_get("/events/recent?limit=10")
+    telemetry_summary = _telemetry_get("/stats/summary")
+    nakama_api = _nakama_api_get()
+
+    telemetry_mode = "unknown"
+    if admin_config.get("ok") and isinstance(admin_config.get("data"), dict):
+        telemetry_mode = admin_config["data"].get("telemetry_mode", "unknown")
+
     # Aggregate selected data from multiple services.
     result = {
         "ok": True,
         "service": "dashboard-api",
         "mode": _dashboard_mode(),
+        "telemetry_mode": telemetry_mode,
         "upstreams": {
             # admin service
-            "admin_health": _admin_get("/health"),
-            "admin_config": _admin_get("/config"),
+            "admin_health": admin_health,
+            "admin_config": admin_config,
 
             # telemetry service
-            "telemetry_health": _telemetry_get("/health"),
-            "telemetry_recent": _telemetry_get("/events/recent?limit=10"),
-            "telemetry_summary": _telemetry_get("/stats/summary"),
+            "telemetry_health": telemetry_health,
+            "telemetry_recent": telemetry_recent,
+            "telemetry_summary": telemetry_summary,
 
             # Nakama service
-            "nakama_api": _nakama_api_get(),
+            "nakama_api": nakama_api,
             #"nakama_console": _nakama_console_get(),
         },
     }

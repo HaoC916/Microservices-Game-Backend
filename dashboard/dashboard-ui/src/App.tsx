@@ -64,6 +64,7 @@ type UpstreamItem = {
   ok?: boolean;
   url?: string;
   status_code?: number | null;
+  latency_ms?: number;
   data?: any;
   error?: string;
 };
@@ -72,6 +73,7 @@ type SummaryResponse = {
   ok?: boolean;
   service?: string;
   mode?: string;
+  telemetry_mode?: string;
   upstreams?: {
     admin_health?: UpstreamItem;
     admin_config?: UpstreamItem;
@@ -121,6 +123,12 @@ function getStatusStyle(ok: boolean) {
   return ok
     ? "bg-emerald-100 text-emerald-700 border-emerald-200"
     : "bg-amber-100 text-amber-700 border-amber-200";
+}
+
+function getLatencyDisplay(ok: boolean, latencyMs?: number) {
+  if (!ok) return "Unavailable";
+  if (typeof latencyMs === "number") return `${latencyMs} ms`;
+  return "Reachable";
 }
 
 /**
@@ -309,10 +317,19 @@ export default function DashboardPage() {
       upstreams,
       dashboardOnline: !!health?.ok,
       dashboardMode: health?.mode || "—",
+      telemetryMode: summary?.telemetry_mode || "unknown",
+
       recentTelemetryCount: metricValues.recent_telemetry_events ?? 0,
+
       adminOk: !!upstreams.admin_health?.ok,
       telemetryHealthOk: !!upstreams.telemetry_health?.ok,
       nakamaApiOk: !!upstreams.nakama_api?.ok,
+
+      // latency : dashboard-api to admin-api, telemetry-api, nakama-api
+      adminHealthLatencyMs: upstreams.admin_health?.latency_ms,
+      telemetryHealthLatencyMs: upstreams.telemetry_health?.latency_ms,
+      nakamaApiLatencyMs: upstreams.nakama_api?.latency_ms,
+
       //nakamaConsoleOk: !!upstreams.nakama_console?.ok,
       telemetryPreview: upstreams.telemetry_recent?.data || { count: 0, events: [] },
     };
@@ -362,6 +379,32 @@ export default function DashboardPage() {
           />
 
           <MetricCard
+            title="Admin Service"
+            value={getLatencyDisplay(derived.adminOk, derived.adminHealthLatencyMs)}
+            subtitle={derived.adminOk ? `Mode: ${derived.telemetryMode}` : "Mode unavailable"}
+            icon={derived.adminOk ? <ShieldCheck className="h-6 w-6" /> : <WifiOff className="h-6 w-6" />}
+          />
+
+          <MetricCard
+            title="Telemetry Service"
+            value={getLatencyDisplay(derived.telemetryHealthOk, derived.telemetryHealthLatencyMs)}
+            subtitle={    
+              derived.telemetryHealthOk
+              ? `Events: ${derived.recentTelemetryCount}`
+              : "Count unavailable"
+            }
+            icon={derived.telemetryHealthOk ? <ShieldCheck className="h-6 w-6" /> : <WifiOff className="h-6 w-6" />}
+          />
+
+          <MetricCard
+            title="Nakama API"
+            value={getLatencyDisplay(derived.nakamaApiOk, derived.nakamaApiLatencyMs)}
+            subtitle={derived.nakamaApiOk ? "Reachable" : "Unavailable"}
+            icon={derived.nakamaApiOk ? <Server className="h-6 w-6" /> : <WifiOff className="h-6 w-6" />}
+          />
+
+          {/*
+          <MetricCard
             title="Telemetry Service"
             value={derived.telemetryHealthOk ? "Reachable" : "Unavailable"}
             subtitle="Checked by dashboard-api"
@@ -374,6 +417,7 @@ export default function DashboardPage() {
             subtitle="Read from telemetry-api"
             icon={<Activity className="h-6 w-6" />}
           />
+       
 
           <MetricCard
             title="Nakama API"
@@ -381,8 +425,14 @@ export default function DashboardPage() {
             subtitle="Checked by dashboard-api"
             icon={derived.nakamaApiOk ? <Server className="h-6 w-6" /> : <WifiOff className="h-6 w-6" />}
           />
+      
+          <MetricCard
+            title="Telemetry Mode"
+            value={derived.telemetryMode}
+            subtitle="admin forwarding mode"
+            icon={<Activity className="h-6 w-6" />}
+          />
 
-          {/*
           <MetricCard
             title="Nakama Console"
             value={derived.nakamaConsoleOk ? "Reachable" : "Unavailable"}
