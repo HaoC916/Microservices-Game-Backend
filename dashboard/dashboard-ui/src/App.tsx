@@ -28,7 +28,7 @@ import {
  */
 
 const API_BASE = "http://localhost:8100";
-const REFRESH_INTERVAL_MS = 10000;
+const REFRESH_INTERVAL_MS = 3000;
 
 /**
  * ------------------------------------------------------------
@@ -316,6 +316,7 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState("");
   const [changingMode, setChangingMode] = useState(false);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
   /**
    * Load all dashboard data from the backend.
@@ -326,7 +327,7 @@ export default function DashboardPage() {
    *   - manual refresh button
    */
   const loadData = async () => {
-    setLoading(true);
+    //setLoading(true);
     setError(null);
 
     try {
@@ -335,11 +336,21 @@ export default function DashboardPage() {
       setMetrics(data.metrics);
       setSummary(data.summary);
       setLastUpdated(new Date().toLocaleString());
+
+      // Mark initial load as finished
+      if (!hasLoadedOnce) {
+        setHasLoadedOnce(true);
+        setLoading(false);
+      }
     } catch (err: any) {
       setError(err?.message || "Failed to fetch dashboard data.");
-    } finally {
-      setLoading(false);
-    }
+
+      // If the very first load fails, stop loading state as well.
+      if (!hasLoadedOnce) {
+        setHasLoadedOnce(true);
+        setLoading(false);
+      }
+    } 
   };
 
   /**
@@ -381,6 +392,15 @@ export default function DashboardPage() {
   const derived = useMemo(() => {
     const metricValues = metrics?.metrics || {};
     const upstreams = summary?.upstreams || {};
+    // Read telemetry preview data from telemetry-api.
+    const rawTelemetryPreview = upstreams.telemetry_recent?.data || { count: 0, events: [] };
+    // Reverse the event order on the frontend ==> the newest events appear first.
+    const reversedTelemetryPreview = {
+      ...rawTelemetryPreview,
+      events: Array.isArray(rawTelemetryPreview.events)
+        ? [...rawTelemetryPreview.events].reverse()
+        : [],
+    };
 
     return {
       metricValues,
@@ -401,7 +421,8 @@ export default function DashboardPage() {
       nakamaApiLatencyMs: upstreams.nakama_api?.latency_ms,
 
       //nakamaConsoleOk: !!upstreams.nakama_console?.ok,
-      telemetryPreview: upstreams.telemetry_recent?.data || { count: 0, events: [] },
+      //telemetryPreview: upstreams.telemetry_recent?.data || { count: 0, events: [] },
+      telemetryPreview: reversedTelemetryPreview, // newest telemetry events appear first.
     };
   }, [health, metrics, summary]);
 
@@ -488,6 +509,23 @@ export default function DashboardPage() {
 
           {/*
           <MetricCard
+            title="Dashboard Service"
+            value={
+              loading 
+                ? "Loading" 
+                : derived.dashboardOnline 
+                ? (derived.dashboardLatencyMs !== null ? `${derived.dashboardLatencyMs} ms` : "Online") 
+                : "Offline"
+            }
+            subtitle={
+              derived.dashboardOnline
+                ? `Mode: ${derived.dashboardMode}`
+                : "Dashboard unavailable"
+            }
+            icon={<BarChart3 className="h-6 w-6" />}
+          />
+
+          <MetricCard
             title="Telemetry Service"
             value={derived.telemetryHealthOk ? "Reachable" : "Unavailable"}
             subtitle="Checked by dashboard-api"
@@ -557,9 +595,19 @@ export default function DashboardPage() {
                 <SimpleMetricBox label="Peak Online" value={derived.metricValues.peak_online_players ?? 0} />
               </div>
             </Panel>
-
+            
+            {/* 
             <Panel title="Telemetry Preview">
               <div className="overflow-auto rounded-2xl bg-slate-950 p-4 text-sm text-slate-100">
+                <pre className="whitespace-pre-wrap break-words">
+                  {JSON.stringify(derived.telemetryPreview, null, 2)}
+                </pre>
+              </div>
+            </Panel>
+            */}
+
+            <Panel title="Events Preview">
+              <div className="max-h-[420px] overflow-y-auto overflow-x-hidden rounded-2xl bg-slate-950 p-4 text-sm text-slate-100">
                 <pre className="whitespace-pre-wrap break-words">
                   {JSON.stringify(derived.telemetryPreview, null, 2)}
                 </pre>

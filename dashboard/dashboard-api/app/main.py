@@ -100,6 +100,7 @@ def _request_timeout_seconds() -> float:
 class TelemetryModeRequest(BaseModel):
     mode: str
 
+"""
 def _service_get(base_url: str, path: str = "") -> Dict[str, Any]:
     url = f"{base_url}{path}"
     start = time.monotonic()
@@ -131,6 +132,47 @@ def _service_get(base_url: str, path: str = "") -> Dict[str, Any]:
             "status_code": response.status_code if "response" in locals() else None,
             "latency_ms": latency_ms,
             "error": f"Invalid JSON response: {exc}",
+        }
+"""
+
+def _service_get(base_url: str, path: str = "") -> Dict[str, Any]:
+    url = f"{base_url}{path}"
+    start = time.monotonic()
+
+    try:
+        response = requests.get(url, timeout=_request_timeout_seconds())
+        latency_ms = int((time.monotonic() - start) * 1000)
+
+        result = {
+            "ok": response.ok,
+            "url": url,
+            "status_code": response.status_code,
+            "latency_ms": latency_ms,
+        }
+
+        content_type = response.headers.get("content-type", "").lower()
+
+        if "application/json" in content_type:
+            try:
+                result["data"] = response.json()
+            except ValueError:
+                result["data"] = None
+                result["warning"] = "Response declared JSON but could not be parsed."
+        else:
+            text = response.text.strip()
+            if text:
+                result["text_preview"] = text[:200]
+
+        return result
+
+    except requests.RequestException as exc:
+        latency_ms = int((time.monotonic() - start) * 1000)
+        return {
+            "ok": False,
+            "url": url,
+            "status_code": None,
+            "latency_ms": latency_ms,
+            "error": str(exc),
         }
     
 def _admin_get(path: str) -> Dict[str, Any]:
