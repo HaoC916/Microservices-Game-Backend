@@ -257,6 +257,24 @@ function SimpleMetricBox({ label, value }: { label: string; value: string | numb
   );
 }
 
+function ExperimentMetricBox({
+  label,
+  value,
+  subtitle,
+}: {
+  label: string;
+  value: string | number;
+  subtitle?: string;
+}) {
+  return (
+    <div className="rounded-2xl bg-slate-100 p-4">
+      <div className="text-sm text-slate-500">{label}</div>
+      <div className="mt-2 text-2xl font-semibold text-slate-900">{value}</div>
+      {subtitle ? <div className="mt-1 text-xs text-slate-500">{subtitle}</div> : null}
+    </div>
+  );
+}
+
 function UpstreamRow({ name, item }: { name: string; item?: UpstreamItem }) {
   const ok = !!item?.ok;
   const status = item?.status_code ?? "-";
@@ -355,7 +373,7 @@ export default function DashboardPage() {
 
   /**
    * Load data once when the page starts,
-   * and then refresh automatically every 10 seconds.
+   * and then refresh automatically every (REFRESH_INTERVAL_MS) seconds.
    */
   useEffect(() => {
     loadData();
@@ -423,6 +441,16 @@ export default function DashboardPage() {
       //nakamaConsoleOk: !!upstreams.nakama_console?.ok,
       //telemetryPreview: upstreams.telemetry_recent?.data || { count: 0, events: [] },
       telemetryPreview: reversedTelemetryPreview, // newest telemetry events appear first.
+      
+      // experimentMetrics are placeholders for potential future metrics.
+      experimentMetrics: {
+        telemetryMode: summary?.telemetry_mode || "unknown",
+        loginMeanMs: "—",
+        loginP95Ms: "—",
+        matchSearchMeanMs: "—",
+        matchSearchP95Ms: "—",
+        telemetrySyncMeanMs: "—",
+      },
     };
   }, [health, metrics, summary]);
 
@@ -506,86 +534,61 @@ export default function DashboardPage() {
             subtitle={derived.nakamaApiOk ? "Reachable" : "Unavailable"}
             icon={derived.nakamaApiOk ? <Server className="h-6 w-6" /> : <WifiOff className="h-6 w-6" />}
           />
-
-          {/*
-          <MetricCard
-            title="Dashboard Service"
-            value={
-              loading 
-                ? "Loading" 
-                : derived.dashboardOnline 
-                ? (derived.dashboardLatencyMs !== null ? `${derived.dashboardLatencyMs} ms` : "Online") 
-                : "Offline"
-            }
-            subtitle={
-              derived.dashboardOnline
-                ? `Mode: ${derived.dashboardMode}`
-                : "Dashboard unavailable"
-            }
-            icon={<BarChart3 className="h-6 w-6" />}
-          />
-
-          <MetricCard
-            title="Telemetry Service"
-            value={derived.telemetryHealthOk ? "Reachable" : "Unavailable"}
-            subtitle="Checked by dashboard-api"
-            icon={derived.telemetryHealthOk ? <ShieldCheck className="h-6 w-6" /> : <WifiOff className="h-6 w-6" />}
-          />
-
-          <MetricCard
-            title="Recent Telemetry"
-            value={derived.recentTelemetryCount}
-            subtitle="Read from telemetry-api"
-            icon={<Activity className="h-6 w-6" />}
-          />
-            
-          <MetricCard
-            title="Admin Service"
-            value={getLatencyDisplay(derived.adminOk, derived.adminHealthLatencyMs)}
-            subtitle={derived.adminOk ? `Mode: ${derived.telemetryMode}` : "Mode unavailable"}
-            icon={derived.adminOk ? <ShieldCheck className="h-6 w-6" /> : <WifiOff className="h-6 w-6" />}
-          />
-
-          <MetricCard
-            title="Nakama API"
-            value={derived.nakamaApiOk ? "Reachable" : "Unavailable"}
-            subtitle="Checked by dashboard-api"
-            icon={derived.nakamaApiOk ? <Server className="h-6 w-6" /> : <WifiOff className="h-6 w-6" />}
-          />
-      
-          <MetricCard
-            title="Telemetry Mode"
-            value={derived.telemetryMode}
-            subtitle="admin forwarding mode"
-            icon={<Activity className="h-6 w-6" />}
-          />
-
-          <MetricCard
-            title="Nakama Console"
-            value={derived.nakamaConsoleOk ? "Reachable" : "Unavailable"}
-            subtitle="Checked via admin-api"
-            icon={derived.nakamaConsoleOk ? <ShieldCheck className="h-6 w-6" /> : <WifiOff className="h-6 w-6" />}
-          />
-          */}
         </div>
 
 
         {/* Main content area */}
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-          {/* Left: upstream status */}
-          <Panel title="Upstream Status Summary" right={<StatusBadge ok={!!summary?.ok} />}>
-            <div className="space-y-3">
-              <UpstreamRow name="Admin Health" item={derived.upstreams.admin_health} />
-              <UpstreamRow name="Admin Config" item={derived.upstreams.admin_config} />
-              <UpstreamRow name="Telemetry Health" item={derived.upstreams.telemetry_health} />
-              <UpstreamRow name="Telemetry Recent" item={derived.upstreams.telemetry_recent} />
-              <UpstreamRow name="Telemetry Summary" item={derived.upstreams.telemetry_summary} />
-              <UpstreamRow name="Nakama API" item={derived.upstreams.nakama_api} />
-              {/* <UpstreamRow name="Nakama Console" item={derived.upstreams.nakama_console} /> */}
-            </div>
-          </Panel>
+          {/* Left Column */}
+          <div className="space-y-6">
+            <Panel title="Experiment Metrics">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <ExperimentMetricBox
+                  label="Telemetry Mode"
+                  value={derived.experimentMetrics.telemetryMode}
+                  subtitle="Current forwarding mode"
+                />
+                <ExperimentMetricBox
+                  label="Login Mean"
+                  value={derived.experimentMetrics.loginMeanMs}
+                  subtitle="End-to-end login latency"
+                />
+                <ExperimentMetricBox
+                  label="Login P95"
+                  value={derived.experimentMetrics.loginP95Ms}
+                  subtitle="Tail latency"
+                />
+                <ExperimentMetricBox
+                  label="Match Search Mean"
+                  value={derived.experimentMetrics.matchSearchMeanMs}
+                  subtitle="Matchmaking latency"
+                />
+                <ExperimentMetricBox
+                  label="Match Search P95"
+                  value={derived.experimentMetrics.matchSearchP95Ms}
+                  subtitle="Tail latency"
+                />
+                <ExperimentMetricBox
+                  label="Telemetry Sync Mean"
+                  value={derived.experimentMetrics.telemetrySyncMeanMs}
+                  subtitle="Critical-path telemetry overhead"
+                />
+              </div>
+            </Panel>
 
-          {/* Right: secondary panels */}
+            <Panel title="Upstream Status Summary" right={<StatusBadge ok={!!summary?.ok} />}>
+              <div className="space-y-3">
+                <UpstreamRow name="Admin Health" item={derived.upstreams.admin_health} />
+                <UpstreamRow name="Admin Config" item={derived.upstreams.admin_config} />
+                <UpstreamRow name="Telemetry Health" item={derived.upstreams.telemetry_health} />
+                <UpstreamRow name="Telemetry Recent" item={derived.upstreams.telemetry_recent} />
+                <UpstreamRow name="Telemetry Summary" item={derived.upstreams.telemetry_summary} />
+                <UpstreamRow name="Nakama API" item={derived.upstreams.nakama_api} />
+              </div>
+            </Panel>
+          </div>  
+
+          {/* Right Column */}
           <div className="space-y-6">
             <Panel title="Gameplay Metrics">
               <div className="grid grid-cols-2 gap-4 text-sm">
@@ -596,16 +599,6 @@ export default function DashboardPage() {
               </div>
             </Panel>
             
-            {/* 
-            <Panel title="Telemetry Preview">
-              <div className="overflow-auto rounded-2xl bg-slate-950 p-4 text-sm text-slate-100">
-                <pre className="whitespace-pre-wrap break-words">
-                  {JSON.stringify(derived.telemetryPreview, null, 2)}
-                </pre>
-              </div>
-            </Panel>
-            */}
-
             <Panel title="Events Preview">
               <div className="max-h-[420px] overflow-y-auto overflow-x-hidden rounded-2xl bg-slate-950 p-4 text-sm text-slate-100">
                 <pre className="whitespace-pre-wrap break-words">
