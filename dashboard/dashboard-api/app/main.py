@@ -100,40 +100,6 @@ def _request_timeout_seconds() -> float:
 class TelemetryModeRequest(BaseModel):
     mode: str
 
-"""
-def _service_get(base_url: str, path: str = "") -> Dict[str, Any]:
-    url = f"{base_url}{path}"
-    start = time.monotonic()
-
-    try:
-        response = requests.get(url, timeout=_request_timeout_seconds())
-        latency_ms = int((time.monotonic() - start) * 1000)
-        return {
-            "ok": response.ok,
-            "url": url,
-            "status_code": response.status_code,
-            "latency_ms": latency_ms,
-            "data": response.json(),
-        }
-    except requests.RequestException as exc:
-        latency_ms = int((time.monotonic() - start) * 1000)
-        return {
-            "ok": False,
-            "url": url,
-            "status_code": None,
-            "latency_ms": latency_ms,
-            "error": str(exc),
-        }
-    except ValueError as exc:
-        latency_ms = int((time.monotonic() - start) * 1000)
-        return {
-            "ok": False,
-            "url": url,
-            "status_code": response.status_code if "response" in locals() else None,
-            "latency_ms": latency_ms,
-            "error": f"Invalid JSON response: {exc}",
-        }
-"""
 
 def _service_get(base_url: str, path: str = "") -> Dict[str, Any]:
     url = f"{base_url}{path}"
@@ -175,6 +141,7 @@ def _service_get(base_url: str, path: str = "") -> Dict[str, Any]:
             "error": str(exc),
         }
     
+
 def _admin_get(path: str) -> Dict[str, Any]:
     return _service_get(_admin_api_base_url(), path)
 
@@ -284,6 +251,36 @@ def metrics() -> Dict[str, Any]:
         # "note": "placeholder gameplay metrics; telemetry data is now read from telemetry-api",
     }
 
+# Return summarized experiment metrics for dashboard display.
+@app.get("/experiments/summary")
+def experiments_summary() -> Dict[str, Any]:
+    """
+    Current version:
+    - uses placeholder/mock values
+    - later can be replaced by real computed values from
+      experiment logs / exported summary files / database
+    """
+    admin_config = _admin_get("/config")
+
+    telemetry_mode = "unknown"
+    if admin_config.get("ok") and isinstance(admin_config.get("data"), dict):
+        telemetry_mode = admin_config["data"].get("telemetry_mode", "unknown")
+
+    return {
+        "ok": True,
+        "service": "dashboard-api",
+        "experiment_metrics": {
+            #"deployment_mode": "local",
+            "telemetry_mode": telemetry_mode,
+            "sample_count": 0,
+            "login_mean_ms": None,
+            "login_p95_ms": None,
+            "match_search_mean_ms": None,
+            "match_search_p95_ms": None,
+            "telemetry_sync_mean_ms": None,
+        },
+    }
+
 @app.get("/telemetry/mode")
 def get_telemetry_mode() -> JSONResponse:
     result = _admin_get("/telemetry/mode")
@@ -304,6 +301,14 @@ def set_telemetry_mode(request: TelemetryModeRequest) -> JSONResponse:
         )
 
     result = _admin_post("/telemetry/mode", {"mode": mode})
+    status_code = 200 if result.get("ok") else 502
+    return JSONResponse(result, status_code=status_code)
+
+# Proxy reset request to telemetry-api.
+# This lets dashboard-ui reset telemetry state without calling telemetry-api directly.
+@app.post("/telemetry/reset")
+def reset_telemetry() -> JSONResponse:
+    result = _telemetry_post("/reset", {})
     status_code = 200 if result.get("ok") else 502
     return JSONResponse(result, status_code=status_code)
 
@@ -349,13 +354,4 @@ def summary() -> JSONResponse:
     # Return 200 when all upstreams are healthy.
     # Return 502 when one or more upstream checks fail.
     status_code = 200 if all_ok else 502
-    return JSONResponse(result, status_code=status_code)
-
-
-# Proxy reset request to telemetry-api.
-# This lets dashboard-ui reset telemetry state without calling telemetry-api directly.
-@app.post("/telemetry/reset")
-def reset_telemetry() -> JSONResponse:
-    result = _telemetry_post("/reset", {})
-    status_code = 200 if result.get("ok") else 502
     return JSONResponse(result, status_code=status_code)
