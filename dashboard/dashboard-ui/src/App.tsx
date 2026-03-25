@@ -335,6 +335,7 @@ export default function DashboardPage() {
   const [lastUpdated, setLastUpdated] = useState("");
   const [changingMode, setChangingMode] = useState(false);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const [resettingTelemetry, setResettingTelemetry] = useState(false);
 
   /**
    * Load all dashboard data from the backend.
@@ -369,6 +370,25 @@ export default function DashboardPage() {
         setLoading(false);
       }
     } 
+  };
+
+  /**
+   * Handle telemetry reset action.
+   * This is triggered by a button in the UI, and sends a POST request to dashboard-api,
+   * which then proxies it to telemetry-api. After resetting, we reload the data to update the UI.
+   */
+  const handleTelemetryReset = async () => {
+    setResettingTelemetry(true);
+    setError(null);
+
+    try {
+      await postJson("/telemetry/reset", {});
+      await loadData();
+    } catch (err: any) {
+      setError(err?.message || "Failed to reset telemetry.");
+    } finally {
+      setResettingTelemetry(false);
+    }
   };
 
   /**
@@ -519,11 +539,20 @@ export default function DashboardPage() {
 
           <MetricCard
             title="Telemetry Service"
-            value={getLatencyDisplay(derived.telemetryHealthOk, derived.telemetryHealthLatencyMs)}
-            subtitle={    
-              derived.telemetryHealthOk
-              ? `Events: ${derived.recentTelemetryCount}`
-              : "Count unavailable"
+            value={getLatencyDisplay(derived.telemetryHealthOk, derived.telemetryHealthLatencyMs)}   
+            subtitle={
+              <div>
+                <div>Events: {derived.recentTelemetryCount}</div>
+                <div className="mt-2">
+                  <button
+                    onClick={handleTelemetryReset}
+                    disabled={resettingTelemetry}
+                    className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {resettingTelemetry ? "Resetting..." : "Reset"}
+                  </button>
+                </div>
+              </div>
             }
             icon={derived.telemetryHealthOk ? <ShieldCheck className="h-6 w-6" /> : <WifiOff className="h-6 w-6" />}
           />
@@ -599,7 +628,7 @@ export default function DashboardPage() {
               </div>
             </Panel>
             
-            <Panel title="Events Preview">
+            <Panel title="Events Preview (recent 10 events)">
               <div className="max-h-[420px] overflow-y-auto overflow-x-hidden rounded-2xl bg-slate-950 p-4 text-sm text-slate-100">
                 <pre className="whitespace-pre-wrap break-words">
                   {JSON.stringify(derived.telemetryPreview, null, 2)}

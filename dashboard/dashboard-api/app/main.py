@@ -206,6 +206,30 @@ def _admin_post(path: str, payload: Dict[str, Any]) -> Dict[str, Any]:
 def _telemetry_get(path: str) -> Dict[str, Any]:
     return _service_get(_telemetry_api_base_url(), path)
 
+def _telemetry_post(path: str, payload: Dict[str, Any] | None = None) -> Dict[str, Any]:
+    url = f"{_telemetry_api_base_url()}{path}"
+    start = time.monotonic()
+
+    try:
+        response = requests.post(url, json=payload or {}, timeout=_request_timeout_seconds())
+        latency_ms = int((time.monotonic() - start) * 1000)
+        return {
+            "ok": response.ok,
+            "url": url,
+            "status_code": response.status_code,
+            "latency_ms": latency_ms,
+            "data": response.json(),
+        }
+    except requests.RequestException as exc:
+        latency_ms = int((time.monotonic() - start) * 1000)
+        return {
+            "ok": False,
+            "url": url,
+            "status_code": None,
+            "latency_ms": latency_ms,
+            "error": str(exc),
+        }
+
 def _nakama_api_get(path: str = "") -> Dict[str, Any]:
     return _service_get(_nakama_api_base_url(), path)
 
@@ -325,4 +349,13 @@ def summary() -> JSONResponse:
     # Return 200 when all upstreams are healthy.
     # Return 502 when one or more upstream checks fail.
     status_code = 200 if all_ok else 502
+    return JSONResponse(result, status_code=status_code)
+
+
+# Proxy reset request to telemetry-api.
+# This lets dashboard-ui reset telemetry state without calling telemetry-api directly.
+@app.post("/telemetry/reset")
+def reset_telemetry() -> JSONResponse:
+    result = _telemetry_post("/reset", {})
+    status_code = 200 if result.get("ok") else 502
     return JSONResponse(result, status_code=status_code)

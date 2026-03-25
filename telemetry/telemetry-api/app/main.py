@@ -63,8 +63,8 @@ def _build_event(payload: Dict[str, Any]) -> Dict[str, Any]:
         # server-side receive timestamp
         "received_ts_ms": int(time.time() * 1000),
         # optional metadata from client payload
-        "source": original_payload.get("source", "unknown"),
-        "event_type": original_payload.get("event_type", "unknown"),
+        "source": original_payload.get("source", original_payload.get("client_tag", "unknown")),
+        "event_type": original_payload.get("event_type", original_payload.get("event", "unknown")),
         "mode": payload.get("mode", original_payload.get("mode", "unknown")),
         # ingestion path metadata
         "ingest_path": "via-admin" if "payload" in payload else "direct",
@@ -155,4 +155,27 @@ def get_stats_summary() -> Dict[str, Any]:
         "recent_buffer_count": len(RECENT_EVENTS),
         "total_events": TOTAL_EVENTS,
         "buffer_size": BUFFER_SIZE,
+    }
+
+
+# --------------------------------------------------
+# POST /reset
+# --------------------------------------------------
+# Clear all in-memory telemetry state for testing convenience.
+# This endpoint resets:
+#    - recent event buffer
+#    - total accepted event counter
+@app.post("/reset")
+def reset_telemetry() -> Dict[str, Any]:
+    global TOTAL_EVENTS
+
+    RECENT_EVENTS.clear()
+    TOTAL_EVENTS = 0
+
+    return {
+        "ok": True,
+        "service": "telemetry-api",
+        "reset": True,
+        "recent_buffer_count": len(RECENT_EVENTS),
+        "total_events": TOTAL_EVENTS,
     }
