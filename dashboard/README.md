@@ -147,17 +147,15 @@ Expected result:
 ```
 
 ## Local Development Notes
-```text
-dashboard-ui reads data only from dashboard-api
-dashboard-api aggregates/proxies data from admin-api, telemetry-api, and nakama-api
-admin-api is currently the telemetry control / forwarding layer
-telemetry-api is the telemetry ingestion / recent buffer / summary layer
-dashboard currently checks Nakama API reachability only
-Nakama Console is not currently part of dashboard monitoring
-If Nakama is not running locally, the UI will still render, but Nakama-related sections may show unavailable or degraded status
-Gameplay Metrics are still placeholders
-Experiment Metrics are currently connected to dashboard-api but may still contain placeholder values until real experiment summaries are provided
-```
+- dashboard-ui reads data only from dashboard-api
+- dashboard-api aggregates/proxies data from admin-api, telemetry-api, and nakama-api
+- admin-api is currently the telemetry control / forwarding layer
+- telemetry-api is the telemetry ingestion / recent buffer / summary layer
+- dashboard currently checks Nakama API reachability only
+- Nakama Console is not currently part of dashboard monitoring
+- If Nakama is not running locally, the UI will still render, but Nakama-related sections may show unavailable or degraded status
+- Gameplay Metrics are still placeholders
+- Experiment Metrics are currently connected to dashboard-api but may still contain placeholder values until real experiment summaries are provided
 
 ## Experiment Metrics Note
 
@@ -165,16 +163,16 @@ The Experiment Metrics panel is already part of the UI.
 
 Current phase:
 
-values are served by dashboard-api /experiments/summary
-data may be manually updated via POST /experiments/summary
-data may be reset via POST /experiments/reset
+- values are served by dashboard-api /experiments/summary
+- data may be manually updated via POST /experiments/summary
+- data may be reset via POST /experiments/reset
 
 Future phase:
 
 dashboard-api may replace in-memory experiment values with:
-parsed experiment logs
-exported summary files
-or a database-backed source
+  - parsed experiment logs
+  - exported summary files
+  - or a database-backed source
 
 Expected long-term path:
 ```text
