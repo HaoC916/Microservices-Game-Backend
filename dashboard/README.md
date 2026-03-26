@@ -66,20 +66,27 @@ cd admin/admin-api
 source .venv/bin/activate
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
-### Terminal 2: Start dashboard-api
+
+### Terminal 2: Start telemetry-api
+```bash
+cd telemetry/telemetry-api
+source .venv/bin/activate
+uvicorn app.main:app --host 0.0.0.0 --port 8200
+```
+
+### Terminal 3: Start dashboard-api
 ```bash
 cd dashboard/dashboard-api
 source .venv/bin/activate
 export ADMIN_API_BASE_URL=http://localhost:8000
 export TELEMETRY_API_BASE_URL=http://localhost:8200
 export NAKAMA_API_BASE_URL=http://localhost:7350
-export NAKAMA_CONSOLE_BASE_URL=http://localhost:7351
-export DASHBOARD_MODE=placeholder
+export DASHBOARD_MODE=prototype
 export REQUEST_TIMEOUT_SECONDS=2
 uvicorn app.main:app --host 0.0.0.0 --port 8100
 ```
 
-### Terminal 3: Start dashboard-ui
+### Terminal 4: Start dashboard-ui
 ```bash
 cd dashboard/dashboard-ui
 npm install

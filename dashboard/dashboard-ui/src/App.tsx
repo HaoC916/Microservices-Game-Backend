@@ -231,6 +231,10 @@ function MetricCard({
   );
 }
 
+ /**
+  * Small mode switcher used by the Admin Service card.
+  * It lets the user switch telemetry forwarding mode at runtime.
+  */
 function ModeSelector({
     currentMode,
     disabled,
@@ -265,6 +269,9 @@ function ModeSelector({
   );
 }
 
+/**
+* Simple box used for small metric displays inside a panel.
+*/
 function SimpleMetricBox({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-2xl bg-slate-100 p-4">
@@ -274,6 +281,9 @@ function SimpleMetricBox({ label, value }: { label: string; value: string | numb
   );
 }
 
+/**
+* Small box used for experiment summary values.
+*/
 function ExperimentMetricBox({
   label,
   value,
@@ -412,7 +422,7 @@ export default function DashboardPage() {
 
   /**
    * Load data once when the page starts,
-   * and then refresh automatically every (REFRESH_INTERVAL_MS) seconds.
+   * then refresh automatically every (REFRESH_INTERVAL_MS).
    */
   useEffect(() => {
     loadData();
@@ -425,8 +435,8 @@ export default function DashboardPage() {
   }, []);
 
   /**
-   *  Handle changing telemetry mode via admin-api.
-   * 
+   * Change telemetry mode through dashboard-api,
+   * which then proxies the request to admin-api.
    */
   const handleModeChange = async (mode: "off" | "sync" | "async") => {
     setChangingMode(true);
