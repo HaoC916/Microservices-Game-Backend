@@ -69,6 +69,22 @@ type UpstreamItem = {
   error?: string;
 };
 
+type ExperimentMetrics = {
+  telemetry_mode?: string;
+  sample_count?: number;
+  login_mean_ms?: number | null;
+  login_p95_ms?: number | null;
+  match_search_mean_ms?: number | null;
+  match_search_p95_ms?: number | null;
+  telemetry_sync_mean_ms?: number | null;
+};
+
+type ExperimentsResponse = {
+  ok?: boolean;
+  service?: string;
+  experiment_metrics?: ExperimentMetrics;
+};
+
 type SummaryResponse = {
   ok?: boolean;
   service?: string;
@@ -125,13 +141,14 @@ async function postJson(path: string, body: unknown) {
  * Promise.all allows the browser to request all endpoints in parallel
  */
 async function fetchDashboardData() {
-  const [health, metrics, summary] = await Promise.all([
+  const [health, metrics, summary, experiments] = await Promise.all([
     fetchJson("/health"),
     fetchJson("/metrics"),
     fetchJson("/summary"),
+    fetchJson("/experiments/summary"),
   ]);
 
-  return { health, metrics, summary };
+  return { health, metrics, summary, experiments };
 }
 
 /**
@@ -328,6 +345,7 @@ export default function DashboardPage() {
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
   const [summary, setSummary] = useState<SummaryResponse | null>(null);
+  const [experiments, setExperiments] = useState<ExperimentsResponse | null>(null);
 
   // State for UI behavior
   const [loading, setLoading] = useState(true);
@@ -354,6 +372,7 @@ export default function DashboardPage() {
       setHealth(data.health);
       setMetrics(data.metrics);
       setSummary(data.summary);
+      setExperiments(data.experiments);
       setLastUpdated(new Date().toLocaleString());
 
       // Mark initial load as finished
@@ -430,6 +449,7 @@ export default function DashboardPage() {
   const derived = useMemo(() => {
     const metricValues = metrics?.metrics || {};
     const upstreams = summary?.upstreams || {};
+    const experimentData = experiments?.experiment_metrics || {};
     // Read telemetry preview data from telemetry-api.
     const rawTelemetryPreview = upstreams.telemetry_recent?.data || { count: 0, events: [] };
     // Reverse the event order on the frontend ==> the newest events appear first.
@@ -464,15 +484,16 @@ export default function DashboardPage() {
       
       // experimentMetrics are placeholders for potential future metrics.
       experimentMetrics: {
-        telemetryMode: summary?.telemetry_mode || "unknown",
-        loginMeanMs: "—",
-        loginP95Ms: "—",
-        matchSearchMeanMs: "—",
-        matchSearchP95Ms: "—",
-        telemetrySyncMeanMs: "—",
+        telemetryMode: experimentData.telemetry_mode ?? summary?.telemetry_mode ?? "unknown",
+        sampleCount: experimentData.sample_count ?? 0,
+        loginMeanMs: experimentData.login_mean_ms ?? "—",
+        loginP95Ms: experimentData.login_p95_ms ?? "—",
+        matchSearchMeanMs: experimentData.match_search_mean_ms ?? "—",
+        matchSearchP95Ms: experimentData.match_search_p95_ms ?? "—",
+        telemetrySyncMeanMs: experimentData.telemetry_sync_mean_ms ?? "—",
       },
     };
-  }, [health, metrics, summary]);
+  }, [health, metrics, summary, experiments]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">

@@ -33,9 +33,9 @@ app.add_middleware(
 )
 
 
-# ----------------------------
+# --------------------------------------------------
 # Environment helpers
-# ----------------------------
+# --------------------------------------------------
 # These helper functions read values from environment variables.
 # If the variable is missing or invalid, they fall back to a default value.
 # This makes the service easier to run locally and on VMs.
@@ -52,9 +52,12 @@ def _env_float(name: str, default: float) -> float:
         return default
 
 def _dashboard_mode() -> str:
-    # Current dashboard mode.
-    # For now, "placeholder" is enough for the project stage.
-    return _env_str("DASHBOARD_MODE", "placeholder")
+    """
+    Return the current dashboard mode label.
+
+    This is mainly used for health/summary display and environment tagging.
+    """
+    return _env_str("DASHBOARD_MODE", "prototype")
 
 def _admin_api_base_url() -> str:
     # Base URL of the admin-api service.
@@ -70,7 +73,6 @@ def _telemetry_api_base_url() -> str:
     #   GCP VM deployment:    http://<telemetry_vm_external_ip>:8200
     return _env_str("TELEMETRY_API_BASE_URL", "http://host.docker.internal:8200").rstrip("/")
 
-
 def _nakama_api_base_url() -> str:
     # Base URL of the Nakama API service.
     # Example:
@@ -78,28 +80,54 @@ def _nakama_api_base_url() -> str:
     #   GCP VM deployment:    http://<nakama_vm_external_ip>:7350
     return _env_str("NAKAMA_API_BASE_URL", "http://host.docker.internal:7350").rstrip("/")
 
-"""
-def _nakama_console_base_url() -> str:
-    # Base URL of the Nakama Console service.
-    # Example:
-    #   local Docker Desktop: http://host.docker.internal:7351
-    #   GCP VM deployment:    http://<nakama_vm_external_ip>:7351
-    return _env_str("NAKAMA_CONSOLE_BASE_URL", "http://host.docker.internal:7351").rstrip("/")
-"""
-
 def _request_timeout_seconds() -> float:
     # Timeout for outgoing HTTP requests to admin-api.
     return _env_float("REQUEST_TIMEOUT_SECONDS", 2.0)
 
-# ----------------------------
-# Generic HTTP client helper
-# ----------------------------
-# This helper sends GET requests to any service base URL
-# and returns a normalized JSON structure.
 
+# --------------------------------------------------
+# In-memory experiment summary state
+# --------------------------------------------------
+# This stores the current experiment metrics used by dashboard-api.
+# Current phase:
+# - values can be updated manually via POST /experiments/summary
+# - values can be cleared via POST /experiments/reset
+# Future phase:
+# - this state may be replaced by file-based or database-backed storage
+EXPERIMENT_SUMMARY: Dict[str, Any] = {
+    "telemetry_mode": None,
+    "sample_count": 0,
+    "login_mean_ms": None,
+    "login_p95_ms": None,
+    "match_search_mean_ms": None,
+    "match_search_p95_ms": None,
+    "telemetry_sync_mean_ms": None,
+}
+
+
+# --------------------------------------------------
+# Request models
+# --------------------------------------------------
+# Request model for runtime telemetry mode switching.
 class TelemetryModeRequest(BaseModel):
     mode: str
 
+# Request model for updating experiment summary values.
+class ExperimentSummaryRequest(BaseModel):
+    telemetry_mode: str | None = None
+    sample_count: int | None = None
+    login_mean_ms: float | None = None
+    login_p95_ms: float | None = None
+    match_search_mean_ms: float | None = None
+    match_search_p95_ms: float | None = None
+    telemetry_sync_mean_ms: float | None = None
+
+
+# --------------------------------------------------
+# Generic HTTP client helper
+# --------------------------------------------------
+# This helper sends GET requests to any service base URL
+# and returns a normalized JSON structure.
 
 def _service_get(base_url: str, path: str = "") -> Dict[str, Any]:
     url = f"{base_url}{path}"
@@ -142,9 +170,14 @@ def _service_get(base_url: str, path: str = "") -> Dict[str, Any]:
         }
     
 
+# --------------------------------------------------
+# Upstream service helpers
+# --------------------------------------------------
+# These helpers wrap requests to admin-api, telemetry-api, and Nakama.
+# They return normalized response objects for dashboard aggregation.
+
 def _admin_get(path: str) -> Dict[str, Any]:
     return _service_get(_admin_api_base_url(), path)
-
 
 def _admin_post(path: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     url = f"{_admin_api_base_url()}{path}"
@@ -200,19 +233,17 @@ def _telemetry_post(path: str, payload: Dict[str, Any] | None = None) -> Dict[st
 def _nakama_api_get(path: str = "") -> Dict[str, Any]:
     return _service_get(_nakama_api_base_url(), path)
 
-"""
-def _nakama_console_get(path: str = "") -> Dict[str, Any]:
-    return _service_get(_nakama_console_base_url(), path)
-"""
 
-# ----------------------------
+# --------------------------------------------------
 # Dashboard endpoints
-# ----------------------------
+# --------------------------------------------------
 
 @app.get("/health")
 def health() -> Dict[str, Any]:
-    # Basic liveness endpoint for dashboard-api itself.
-    # This does not check upstream services.
+    """
+    Basic liveness endpoint for dashboard-api itself.
+    This does not check upstream services.
+    """
     return {
         "ok": True,
         "service": "dashboard-api",
@@ -221,9 +252,10 @@ def health() -> Dict[str, Any]:
 
 @app.get("/metrics")
 def metrics() -> Dict[str, Any]:
-    # Read telemetry summary directly from telemetry-api.
+    """
+    Read telemetry summary directly from telemetry-api.
+    """
     telemetry_summary = _telemetry_get("/stats/summary")
-
     recent_count = 0
     total_events = 0
 
@@ -251,44 +283,98 @@ def metrics() -> Dict[str, Any]:
         # "note": "placeholder gameplay metrics; telemetry data is now read from telemetry-api",
     }
 
-# Return summarized experiment metrics for dashboard display.
 @app.get("/experiments/summary")
 def experiments_summary() -> Dict[str, Any]:
     """
+    Return summarized experiment metrics for dashboard display.
+
     Current version:
-    - uses placeholder/mock values
-    - later can be replaced by real computed values from
-      experiment logs / exported summary files / database
+    - reads telemetry_mode from admin-api config when not explicitly set
+    - other fields come from in-memory experiment summary state
     """
     admin_config = _admin_get("/config")
 
-    telemetry_mode = "unknown"
-    if admin_config.get("ok") and isinstance(admin_config.get("data"), dict):
-        telemetry_mode = admin_config["data"].get("telemetry_mode", "unknown")
+    telemetry_mode = EXPERIMENT_SUMMARY.get("telemetry_mode")
+    if telemetry_mode is None:
+        telemetry_mode = "unknown"
+        if admin_config.get("ok") and isinstance(admin_config.get("data"), dict):
+            telemetry_mode = admin_config["data"].get("telemetry_mode", "unknown")
 
     return {
         "ok": True,
         "service": "dashboard-api",
         "experiment_metrics": {
-            #"deployment_mode": "local",
             "telemetry_mode": telemetry_mode,
-            "sample_count": 0,
-            "login_mean_ms": None,
-            "login_p95_ms": None,
-            "match_search_mean_ms": None,
-            "match_search_p95_ms": None,
-            "telemetry_sync_mean_ms": None,
+            "sample_count": EXPERIMENT_SUMMARY.get("sample_count", 0),
+            "login_mean_ms": EXPERIMENT_SUMMARY.get("login_mean_ms"),
+            "login_p95_ms": EXPERIMENT_SUMMARY.get("login_p95_ms"),
+            "match_search_mean_ms": EXPERIMENT_SUMMARY.get("match_search_mean_ms"),
+            "match_search_p95_ms": EXPERIMENT_SUMMARY.get("match_search_p95_ms"),
+            "telemetry_sync_mean_ms": EXPERIMENT_SUMMARY.get("telemetry_sync_mean_ms"),
         },
+    }
+
+@app.post("/experiments/summary")
+def update_experiments_summary(request: ExperimentSummaryRequest) -> Dict[str, Any]:
+    """
+    Update in-memory experiment summary values.
+
+    This is useful for local testing or for a future script that pushes
+    parsed experiment results into dashboard-api.
+    """
+    updates = request.model_dump(exclude_unset=True)
+
+    for key, value in updates.items():
+        EXPERIMENT_SUMMARY[key] = value
+
+    return {
+        "ok": True,
+        "service": "dashboard-api",
+        "updated": True,
+        "experiment_metrics": EXPERIMENT_SUMMARY,
+    }
+
+@app.post("/experiments/reset")
+def reset_experiments_summary() -> Dict[str, Any]:
+    """
+    Reset in-memory experiment summary values.
+    Useful between test runs without restarting dashboard-api.
+    """
+    global EXPERIMENT_SUMMARY
+
+    EXPERIMENT_SUMMARY = {
+        "telemetry_mode": None,
+        "sample_count": 0,
+        "login_mean_ms": None,
+        "login_p95_ms": None,
+        "match_search_mean_ms": None,
+        "match_search_p95_ms": None,
+        "telemetry_sync_mean_ms": None,
+    }
+
+    return {
+        "ok": True,
+        "service": "dashboard-api",
+        "reset": True,
+        "experiment_metrics": EXPERIMENT_SUMMARY,
     }
 
 @app.get("/telemetry/mode")
 def get_telemetry_mode() -> JSONResponse:
+    """
+    Proxy mode read request to admin-api.
+    Lets dashboard-ui read telemetry mode without calling admin-api directly.
+    """
     result = _admin_get("/telemetry/mode")
     status_code = 200 if result.get("ok") else 502
     return JSONResponse(result, status_code=status_code)
 
 @app.post("/telemetry/mode")
 def set_telemetry_mode(request: TelemetryModeRequest) -> JSONResponse:
+    """
+    Proxy mode update request to admin-api.
+    Lets dashboard-ui change telemetry mode without calling admin-api directly.
+    """
     mode = request.mode.lower()
     if mode not in ("off", "sync", "async"):
         return JSONResponse(
@@ -304,16 +390,25 @@ def set_telemetry_mode(request: TelemetryModeRequest) -> JSONResponse:
     status_code = 200 if result.get("ok") else 502
     return JSONResponse(result, status_code=status_code)
 
-# Proxy reset request to telemetry-api.
-# This lets dashboard-ui reset telemetry state without calling telemetry-api directly.
 @app.post("/telemetry/reset")
 def reset_telemetry() -> JSONResponse:
+    """
+    Proxy reset request to telemetry-api.
+    This lets dashboard-ui reset telemetry state 
+    without calling telemetry-api directly.
+    """
     result = _telemetry_post("/reset", {})
     status_code = 200 if result.get("ok") else 502
     return JSONResponse(result, status_code=status_code)
 
 @app.get("/summary")
 def summary() -> JSONResponse:
+    """
+    Aggregate selected data from multiple services.
+    - Admin API: health, config (for telemetry mode)
+    - Telemetry API: health, recent events, summary stats
+    - Nakama API: health or basic endpoint
+    """
     admin_health = _admin_get("/health")
     admin_config = _admin_get("/config")
     telemetry_health = _telemetry_get("/health")
@@ -325,7 +420,6 @@ def summary() -> JSONResponse:
     if admin_config.get("ok") and isinstance(admin_config.get("data"), dict):
         telemetry_mode = admin_config["data"].get("telemetry_mode", "unknown")
 
-    # Aggregate selected data from multiple services.
     result = {
         "ok": True,
         "service": "dashboard-api",
@@ -335,12 +429,10 @@ def summary() -> JSONResponse:
             # admin service
             "admin_health": admin_health,
             "admin_config": admin_config,
-
             # telemetry service
             "telemetry_health": telemetry_health,
             "telemetry_recent": telemetry_recent,
             "telemetry_summary": telemetry_summary,
-
             # Nakama service
             "nakama_api": nakama_api,
             #"nakama_console": _nakama_console_get(),
@@ -350,7 +442,6 @@ def summary() -> JSONResponse:
     # If any upstream call fails, mark the summary as not fully healthy.
     all_ok = all(item.get("ok", False) for item in result["upstreams"].values())
     result["ok"] = all_ok
-
     # Return 200 when all upstreams are healthy.
     # Return 502 when one or more upstream checks fail.
     status_code = 200 if all_ok else 502
