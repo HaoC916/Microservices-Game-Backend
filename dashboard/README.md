@@ -8,7 +8,7 @@ It currently includes:
 - `dashboard-api`: a FastAPI backend service for dashboard aggregation/query
 - `dashboard-ui`: a React + TypeScript + Vite frontend for dashboard visualization
 
-The dashboard service is designed as a lightweight presentation layer. In the current project phase, `dashboard-api` queries `admin-api` for service status, Nakama reachability, and recent telemetry buffers.
+The dashboard service is designed as a lightweight presentation layer.
 
 ## Directory Structure
 ```text
@@ -23,25 +23,39 @@ dashboard/
 ## Current Scope
 ```text
 - Provide a lightweight dashboard backend for experiment monitoring
-- Aggregate selected upstream information from admin-api
-- Return dashboard-friendly JSON for future UI integration
+- Aggregate selected upstream information from 
+  - admin-api
+  - telemetry-api
+  - nakama-api
+- Return dashboard-friendly JSON for UI display
+- Support runtime telemetry mode switching through dashboard
+- Support telemetry reset through dashboard
+- Provide an Experiment Metrics summary endpoint for future experiment data ingestion
 - Current Endpoints:
   - GET /health
   - GET /metrics
   - GET /summary
+  - GET /experiments/summary
+  - POST /experiments/summary
+  - POST /experiments/reset
+  - GET /telemetry/mode
+  - POST /telemetry/mode
+  - POST /telemetry/reset
 ```
 
 ## Planned Scope
 ```text
-- Aggregate metrics for experiments:
-  - online players
-  - active matches
-  - matchmaking queue depth
-  - peak online users
-- Add experiment-focused summaries:
-  - p50 / p95 / p99 comparison by deployment mode
-  - experiment comparison snapshots
+- Replace placeholder experiment metrics with real experiment summaries
+- Read experiment results from:
+  - parsed log files
+  - exported summary files
+  - or a future database-backed source
+- Add richer experiment summaries such as:
+  - mean / median / p95 / p99
+  - deployment comparison snapshots
+  - local vs GCP views
 - Optionally add persistence or a dedicated stats service later
+- Optionally revisit Nakama Console support if needed in a later dashboard phase
 ```
 
 ## Environment Variables
@@ -49,6 +63,8 @@ dashboard/
 For dashboard-api:
 - `DASHBOARD_MODE`: dashboard mode (placeholder by default)
 - `ADMIN_API_BASE_URL`: upstream admin-api base URL
+- `TELEMETRY_API_BASE_URL`: upstream telemetry-api base URL
+- `NAKAMA_API_BASE_URL`: upstream Nakama API base URL
 - `REQUEST_TIMEOUT_SECONDS`: HTTP timeout when querying admin-api
 ```
 
@@ -56,6 +72,7 @@ For dashboard-api:
 ```bash
 curl http://localhost:8100/health
 curl http://localhost:8100/metrics
+curl http://localhost:8100/experiments/summary
 curl http://localhost:8100/summary
 ```
 
@@ -98,24 +115,70 @@ http://localhost:5173
 ```
 
 ### Local Validation Example
-You can manually add a telemetry event and observe the UI update:
+
+1. Change telemetry mode from dashboard backend
+```bash
+curl -X POST http://localhost:8100/telemetry/mode \
+  -H "Content-Type: application/json" \
+  -d '{"mode":"sync"}'
+```
+
+2. Add a telemetry event through admin-api
 ```bash
 curl -X POST http://localhost:8000/telemetry/event \
   -H "Content-Type: application/json" \
   -d '{"event_type":"player_login","player_id":"p2","source":"ui-test"}'
 ```
-```text
 Expected result:
-- Recent Telemetry count increases
-- Telemetry Preview shows the new event
+```text
+- Telemetry Service event count increases
+- Events Preview shows the new telemetry event
+- Admin Service card reflects the current telemetry mode
+```
+
+3. Reset telemetry state through dashboard backend
+```bash
+curl -X POST http://localhost:8100/telemetry/reset
+```
+Expected result:
+```text
+- Telemetry count returns to zero
+- Events Preview becomes empty
 ```
 
 ### Local Development Notes
 ```text
-dashboard-ui reads data from dashboard-api
-dashboard-api queries admin-api
-admin-api checks Nakama status and serves recent telemetry buffers
-If Nakama is not running locally, the UI will still render, but Nakama-related panels may show degraded or unavailable status
+dashboard-ui reads data only from dashboard-api
+dashboard-api aggregates/proxies data from admin-api, telemetry-api, and nakama-api
+admin-api is currently the telemetry control / forwarding layer
+telemetry-api is the telemetry ingestion / recent buffer / summary layer
+dashboard currently checks Nakama API reachability only
+Nakama Console is not currently part of dashboard monitoring
+If Nakama is not running locally, the UI will still render, but Nakama-related sections may show unavailable or degraded status
+Gameplay Metrics are still placeholders
+Experiment Metrics are currently connected to dashboard-api but may still contain placeholder values until real experiment summaries are provided
+```
+
+### Experiment Metrics Note
+
+The Experiment Metrics panel is already part of the UI.
+
+Current phase:
+
+values are served by dashboard-api /experiments/summary
+data may be manually updated via POST /experiments/summary
+data may be reset via POST /experiments/reset
+
+Future phase:
+
+dashboard-api may replace in-memory experiment values with:
+parsed experiment logs
+exported summary files
+or a database-backed source
+
+Expected long-term path:
+```text
+run experiments -> generate logs or summary -> dashboard-api reads summary -> dashboard-ui displays experiment metrics
 ```
 
 ## Deploy on GCP VM (Dashboard VM)
@@ -140,6 +203,7 @@ docker compose ps
 ```bash
 # curl http://localhost:8100/health
 # curl http://localhost:8100/metrics
+# curl http://localhost:8100/experiments/summary
 # curl http://localhost:8100/summary
 ```
 
@@ -147,6 +211,7 @@ docker compose ps
 ```bash
 # curl http://<dashboard_vm_external_ip>:8100/health
 # curl http://<dashboard_vm_external_ip>:8100/metrics
+# curl http://<dashboard_vm_external_ip>:8100/experiments/summary
 # curl http://<dashboard_vm_external_ip>:8100/summary
 ```
 
