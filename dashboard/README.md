@@ -114,7 +114,7 @@ npm run dev
 http://localhost:5173
 ```
 
-### Local Validation Example
+## Local Validation Example
 
 1. Change telemetry mode from dashboard backend
 ```bash
@@ -146,7 +146,7 @@ Expected result:
 - Events Preview becomes empty
 ```
 
-### Local Development Notes
+## Local Development Notes
 ```text
 dashboard-ui reads data only from dashboard-api
 dashboard-api aggregates/proxies data from admin-api, telemetry-api, and nakama-api
@@ -159,7 +159,7 @@ Gameplay Metrics are still placeholders
 Experiment Metrics are currently connected to dashboard-api but may still contain placeholder values until real experiment summaries are provided
 ```
 
-### Experiment Metrics Note
+## Experiment Metrics Note
 
 The Experiment Metrics panel is already part of the UI.
 
