@@ -53,10 +53,14 @@ TOTAL_EVENTS = 0
 
 
 # --------------------------------------------------
-# Helper: normalize an incoming telemetry event
+# Helper: normalize one incoming telemetry payload
 # --------------------------------------------------
-# This function converts the raw payload into a cleaner event object.
-# We keep a fixed top-level structure so dashboard preview is easier to read.
+# This function converts the raw request body into a cleaner,
+# standardized telemetry event structure.
+#
+# It supports two input shapes:
+# 1. direct client event payloads
+# 2. admin-forwarded wrapped payloads
 def _build_event(payload: Dict[str, Any]) -> Dict[str, Any]:
     original_payload = payload.get("payload", payload)
     event = {
@@ -77,8 +81,8 @@ def _build_event(payload: Dict[str, Any]) -> Dict[str, Any]:
 # --------------------------------------------------
 # GET /health
 # --------------------------------------------------
-# Simple liveness endpoint.
-# Dashboard will use this to decide whether telemetry service is reachable.
+# Basic liveness endpoint for telemetry-api itself.
+# Dashboard uses this to check whether telemetry service is reachable.
 @app.get("/health")
 def health() -> Dict[str, Any]:
     return {
