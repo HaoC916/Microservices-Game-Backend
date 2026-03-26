@@ -47,6 +47,7 @@ Typical field meanings:
 Note: 
 client_mode may appear inside the nested original payload and is client-defined.
 It is different from the top-level telemetry mode, which reflects how admin forwarded the event.
+
 ## Run Locally (Python)
 ```bash
 cd telemetry/telemetry-api
