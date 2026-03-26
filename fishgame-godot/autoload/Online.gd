@@ -4,11 +4,18 @@ extends Node
 #   Online.nakama_host = 'nakama.example.com'
 #   Online.nakama_scheme = 'https'
 var nakama_server_key: String = 'defaultkey'
-var nakama_host: String = '8.229.101.251'
+#var nakama_host: String = '8.229.101.251'
+#var nakama_port: int = 7350
+#var nakama_scheme: String = 'http'
+#var admin_api_host: String = nakama_host
+#var admin_api_port: int = 8000
+#------------------------------
+var nakama_host: String = '127.0.0.1' 
 var nakama_port: int = 7350
 var nakama_scheme: String = 'http'
-var admin_api_host: String = nakama_host
+var admin_api_host: String = '127.0.0.1'
 var admin_api_port: int = 8000
+#------------------------------
 var telemetry_mode: String = "async" # allowed: off|async|sync
 var write_logs_to_file := true
 
