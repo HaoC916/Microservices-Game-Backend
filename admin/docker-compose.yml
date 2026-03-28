@@ -1,0 +1,23 @@
+services:
+  admin-api:
+    build:
+      context: ./admin-api
+    environment:
+      NAKAMA_HOST: ${NAKAMA_HOST:-host.docker.internal}
+      NAKAMA_API_PORT: ${NAKAMA_API_PORT:-7350}
+      NAKAMA_CONSOLE_PORT: ${NAKAMA_CONSOLE_PORT:-7351}
+      TELEMETRY_MODE: ${TELEMETRY_MODE:-async}
+      #TELEMETRY_BUFFER_SIZE: ${TELEMETRY_BUFFER_SIZE:-200}
+      TELEMETRY_API_BASE_URL: ${TELEMETRY_API_BASE_URL:-http://host.docker.internal:8200}
+
+    ports:
+      - "8000:8000"
+
+  admin-db:
+    image: postgres:16-alpine
+    profiles: ["admin-db"]
+    environment:
+      POSTGRES_DB: admin
+      POSTGRES_PASSWORD: adminlocal
+    ports:
+      - "5433:5432"

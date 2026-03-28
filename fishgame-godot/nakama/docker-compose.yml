@@ -1,0 +1,34 @@
+services:
+  cockroachdb:
+    image: cockroachdb/cockroach:v23.1.10
+    command: start-single-node --insecure
+    ports:
+      - "26257:26257"
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  nakama:
+    image: heroiclabs/nakama:3.22.0
+    restart: always
+    depends_on:
+      cockroachdb:
+        condition: service_healthy
+    volumes:
+      - .:/nakama/data
+    # This is the "Secret Sauce" for Docker networking:
+    environment:
+      - DB_ADDRESS=root@cockroachdb:26257
+    entrypoint:
+      - "/bin/sh"
+      - "-ecx"
+      - >
+        /nakama/nakama migrate up --database.address $$DB_ADDRESS &&
+        exec /nakama/nakama --database.address $$DB_ADDRESS --logger.level DEBUG
+    ports:
+      - "7349:7349"
+      - "7350:7350"
+      - "7351:7351"

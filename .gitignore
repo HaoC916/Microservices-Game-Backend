@@ -1,0 +1,23 @@
+# Runtime/local mounts
+nakama/data/
+
+# Archives
+*.tgz
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.venv/
+venv/
+
+# Godot local/generated
+fishgame-godot/.godot/
+fishgame-godot/.import/
+fishgame-godot/.mono/
+
+# Misc
+.DS_Store
+Thumbs.db
