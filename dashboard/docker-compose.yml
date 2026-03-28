@@ -5,6 +5,9 @@ services:
     environment:
       DASHBOARD_MODE: ${DASHBOARD_MODE:-placeholder}
       ADMIN_API_BASE_URL: ${ADMIN_API_BASE_URL:-http://host.docker.internal:8000}
+      TELEMETRY_API_BASE_URL: ${TELEMETRY_API_BASE_URL:-http://host.docker.internal:8200}
+      NAKAMA_API_BASE_URL: ${NAKAMA_API_BASE_URL:-http://host.docker.internal:7350}
+      NAKAMA_CONSOLE_BASE_URL: ${NAKAMA_CONSOLE_BASE_URL:-http://host.docker.internal:7351}
       REQUEST_TIMEOUT_SECONDS: ${REQUEST_TIMEOUT_SECONDS:-2}
     ports:
       - "8100:8000"
