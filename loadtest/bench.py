@@ -9,6 +9,7 @@ import os
 import random
 import string
 import time
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
@@ -16,6 +17,21 @@ from urllib.parse import urlencode, urlparse
 
 import requests
 import websocket
+
+
+# -----------------------------
+# Error typing
+# -----------------------------
+class WSConnectError(RuntimeError):
+    """Failed to connect to any Nakama WS endpoint candidate."""
+
+
+class WSTicketTimeoutError(TimeoutError):
+    """Timed out waiting for matchmaker_ticket after sending matchmaker_add."""
+
+
+class WSProtocolError(RuntimeError):
+    """WS responded but protocol shape was unexpected."""
 
 
 # -----------------------------
@@ -55,6 +71,55 @@ def summarize_ms(values: List[float]) -> Dict[str, float]:
 def rand_id(prefix: str = "dev") -> str:
     tail = "".join(random.choice(string.ascii_lowercase + string.digits) for _ in range(16))
     return f"{prefix}_{tail}"
+
+
+def _safe_rps(count: int, elapsed_seconds: float) -> float:
+    if elapsed_seconds <= 0:
+        return 0.0
+    return count / elapsed_seconds
+
+
+def classify_http_error(exc: Exception) -> str:
+    if isinstance(exc, requests.exceptions.HTTPError):
+        code = getattr(getattr(exc, "response", None), "status_code", None)
+        if code is not None:
+            return f"http_status_{code}"
+        return "other_http"
+    if isinstance(exc, requests.exceptions.Timeout):
+        return "timeout"
+    if isinstance(exc, requests.exceptions.ConnectionError):
+        return "connection"
+    if isinstance(exc, requests.exceptions.RequestException):
+        return "other_http"
+    return "other_http"
+
+
+def classify_ws_error(exc: Exception) -> str:
+    if isinstance(exc, WSConnectError):
+        return "ws_connect_fail"
+    if isinstance(exc, WSTicketTimeoutError):
+        return "ws_timeout_wait_ticket"
+    if isinstance(exc, WSProtocolError):
+        return "ws_protocol_unexpected"
+    if isinstance(exc, websocket.WebSocketException):
+        return "other_ws"
+
+    msg = str(exc).lower()
+    if "ws_connect_fail" in msg or "unable to connect realtime ws" in msg:
+        return "ws_connect_fail"
+    if "matchmaker_ticket" in msg and "timed out" in msg:
+        return "ws_timeout_wait_ticket"
+    if "ws_protocol_unexpected" in msg:
+        return "ws_protocol_unexpected"
+    return "other_ws"
+
+
+def default_errors_csv_path(summary_csv: str) -> str:
+    root, ext = os.path.splitext(summary_csv)
+    if ext == "":
+        ext = ".csv"
+        root = summary_csv
+    return f"{root}_errors{ext}"
 
 
 # -----------------------------
@@ -128,7 +193,7 @@ class NakamaHTTP:
                 except Exception:
                     pass
 
-        raise RuntimeError(
+        raise WSConnectError(
             f"Unable to connect realtime WS. tried={attempted} last_error={last_error}"
         )
 
@@ -166,6 +231,7 @@ class NakamaHTTP:
             },
         }
         t0 = time.perf_counter()
+        saw_protocol_traffic = False
         try:
             ws.send(json.dumps(payload, separators=(",", ":")))
             deadline = time.perf_counter() + self.timeout_s
@@ -173,16 +239,22 @@ class NakamaHTTP:
             while True:
                 remaining = deadline - time.perf_counter()
                 if remaining <= 0:
-                    raise TimeoutError(f"Timed out waiting for matchmaker_ticket (ws={ws_url})")
+                    if saw_protocol_traffic:
+                        raise WSProtocolError(f"ws_protocol_unexpected:no_matchmaker_ticket ws={ws_url}")
+                    raise WSTicketTimeoutError(f"Timed out waiting for matchmaker_ticket (ws={ws_url})")
                 ws.settimeout(remaining)
                 raw = ws.recv()
+                saw_protocol_traffic = True
                 if isinstance(raw, bytes):
                     raw = raw.decode("utf-8", errors="replace")
 
                 try:
                     data = json.loads(raw)
                 except json.JSONDecodeError:
-                    continue
+                    raise WSProtocolError(f"ws_protocol_unexpected:bad_json ws={ws_url} raw={raw[:180]}")
+
+                if isinstance(data, dict) and data.get("error"):
+                    raise WSProtocolError(f"ws_protocol_unexpected:error_response ws={ws_url} data={data}")
 
                 mm_ticket = self._find_key(data, "matchmaker_ticket")
                 if mm_ticket is None:
@@ -249,6 +321,7 @@ class RunConfig:
     timeout_nakama_s: float
     timeout_admin_s: float
     ws_path: str
+    errors_csv: str
 
 
 def vu_worker(vu_id: int, cfg: RunConfig) -> List[dict]:
@@ -273,8 +346,12 @@ def vu_worker(vu_id: int, cfg: RunConfig) -> List[dict]:
             "match_search_ms": None,
             "telemetry_sync_ms": None,
             "ws_endpoint": None,
+            # "ok" means iteration succeeded through login + match_search.
             "ok": True,
-            "error": None,
+            "stage_failed": "none",  # one of: none|login|match_search|telemetry
+            "error_type": "none",
+            "error_detail": None,
+            "error": None,  # backward-compatible alias of error_detail
         }
 
         try:
@@ -284,7 +361,26 @@ def vu_worker(vu_id: int, cfg: RunConfig) -> List[dict]:
             _, match_ms, ws_endpoint = nk.matchmaker_add_ws(token=token, min_count=2, max_count=2, query="*")
             row["match_search_ms"] = match_ms
             row["ws_endpoint"] = ws_endpoint
+        except Exception as e:
+            row["ok"] = False
+            if row["login_ms"] is None:
+                row["stage_failed"] = "login"
+                row["error_type"] = classify_http_error(e)
+            else:
+                row["stage_failed"] = "match_search"
+                row["error_type"] = classify_ws_error(e)
+            ws_ep = row.get("ws_endpoint")
+            detail = str(e)
+            if ws_ep:
+                detail = f"{detail} (ws_endpoint={ws_ep})"
+            row["error_detail"] = detail
+            row["error"] = detail
+            results.append(row)
+            if cfg.sleep_ms > 0:
+                time.sleep(cfg.sleep_ms / 1000.0)
+            continue
 
+        try:
             # Telemetry event payload (align with your current schema)
             tele_payload = {
                 "event": "bench_sample",
@@ -307,12 +403,12 @@ def vu_worker(vu_id: int, cfg: RunConfig) -> List[dict]:
                 pass
 
         except Exception as e:
-            row["ok"] = False
-            ws_ep = row.get("ws_endpoint")
-            if ws_ep:
-                row["error"] = f"{e} (ws_endpoint={ws_ep})"
-            else:
-                row["error"] = str(e)
+            # telemetry errors are tracked separately and do not invalidate
+            # successful login+match_search iteration throughput.
+            row["stage_failed"] = "telemetry"
+            row["error_type"] = classify_http_error(e)
+            row["error_detail"] = str(e)
+            row["error"] = row["error_detail"]
 
         results.append(row)
 
@@ -336,10 +432,13 @@ def main():
     ap.add_argument("--sleep-ms", type=int, default=2000, help="Cooldown between iterations per VU (ms).")
     ap.add_argument("--out", default="logs/run.jsonl", help="Output JSONL path.")
     ap.add_argument("--summary", default="summary.csv", help="Output summary CSV path.")
+    ap.add_argument("--errors-out", default=None, help="Per-run error breakdown CSV path. Default: <summary>_errors.csv")
     ap.add_argument("--nakama-timeout", type=float, default=3.0, help="Nakama HTTP timeout seconds.")
     ap.add_argument("--admin-timeout", type=float, default=2.0, help="Admin HTTP timeout seconds.")
     ap.add_argument("--ws-path", default="/ws", help='Nakama realtime websocket path (default: "/ws").')
     args = ap.parse_args()
+
+    errors_csv = args.errors_out if args.errors_out else default_errors_csv_path(args.summary)
 
     cfg = RunConfig(
         nakama_base=args.nakama.rstrip("/"),
@@ -354,45 +453,81 @@ def main():
         timeout_nakama_s=args.nakama_timeout,
         timeout_admin_s=args.admin_timeout,
         ws_path=args.ws_path,
+        errors_csv=errors_csv,
     )
 
-    os.makedirs(os.path.dirname(cfg.out_jsonl) or ".", exist_ok=True)
+    for path in [cfg.out_jsonl, cfg.summary_csv, cfg.errors_csv]:
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
 
     all_rows: List[dict] = []
+    run_t0 = time.perf_counter()
     with ThreadPoolExecutor(max_workers=cfg.vus) as ex:
         futs = [ex.submit(vu_worker, vu_id, cfg) for vu_id in range(1, cfg.vus + 1)]
         for f in as_completed(futs):
             all_rows.extend(f.result())
+    run_t1 = time.perf_counter()
+    elapsed_seconds = max(run_t1 - run_t0, 1e-9)
 
     # Write JSONL
     with open(cfg.out_jsonl, "w", encoding="utf-8") as w:
         for r in all_rows:
             w.write(json.dumps(r, ensure_ascii=False) + "\n")
 
-    # Extract stats
-    login_vals = [r["login_ms"] for r in all_rows if r["ok"] and isinstance(r["login_ms"], (int, float))]
-    match_vals = [r["match_search_ms"] for r in all_rows if r["ok"] and isinstance(r["match_search_ms"], (int, float))]
-    tele_vals = [r["telemetry_sync_ms"] for r in all_rows if r["ok"] and isinstance(r["telemetry_sync_ms"], (int, float))]
+    # Extract latency stats
+    login_vals = [r["login_ms"] for r in all_rows if isinstance(r["login_ms"], (int, float))]
+    match_vals = [r["match_search_ms"] for r in all_rows if isinstance(r["match_search_ms"], (int, float))]
+    tele_vals = [r["telemetry_sync_ms"] for r in all_rows if isinstance(r["telemetry_sync_ms"], (int, float))]
 
     login_s = summarize_ms(login_vals)
     match_s = summarize_ms(match_vals)
     tele_s = summarize_ms(tele_vals) if cfg.telemetry_mode == "sync" else {"count": 0, "mean": float("nan"), "median": float("nan"), "p95": float("nan"), "p99": float("nan")}
 
+    # Throughput metrics
+    login_success_count = len(login_vals)
+    match_search_success_count = len(match_vals)
+    telemetry_success_count = len(tele_vals) if cfg.telemetry_mode == "sync" else 0
+    successful_iterations = sum(
+        1
+        for r in all_rows
+        if isinstance(r["login_ms"], (int, float)) and isinstance(r["match_search_ms"], (int, float))
+    )
+    login_throughput_rps = _safe_rps(login_success_count, elapsed_seconds)
+    match_search_throughput_rps = _safe_rps(match_search_success_count, elapsed_seconds)
+    telemetry_throughput_rps = _safe_rps(telemetry_success_count, elapsed_seconds) if cfg.telemetry_mode == "sync" else float("nan")
+    overall_throughput_ops = _safe_rps(successful_iterations, elapsed_seconds)
+
+    # Error breakdown
+    failed_rows = [r for r in all_rows if r.get("stage_failed") != "none"]
+    errors_total = len(failed_rows)
+    login_errors = sum(1 for r in failed_rows if r.get("stage_failed") == "login")
+    match_search_errors = sum(1 for r in failed_rows if r.get("stage_failed") == "match_search")
+    telemetry_errors = sum(1 for r in failed_rows if r.get("stage_failed") == "telemetry")
+
+    category_stage_counter: Counter = Counter(
+        (r.get("error_type", "unknown"), r.get("stage_failed", "unknown")) for r in failed_rows
+    )
+    category_counter: Counter = Counter(r.get("error_type", "unknown") for r in failed_rows)
+
     # Write summary CSV (single row)
     header = [
         "nakama", "admin", "mode", "vus", "iters_per_vu", "total_samples",
+        "elapsed_seconds",
         "login_mean_ms", "login_p95_ms", "login_p99_ms",
         "match_search_mean_ms", "match_search_p95_ms", "match_search_p99_ms",
         "telemetry_sync_mean_ms", "telemetry_sync_p95_ms", "telemetry_sync_p99_ms",
-        "error_count"
+        "login_success_count", "match_search_success_count", "telemetry_success_count", "successful_iterations",
+        "login_throughput_rps", "match_search_throughput_rps", "telemetry_throughput_rps", "overall_throughput_ops",
+        "errors_total", "login_errors", "match_search_errors", "telemetry_errors", "errors_csv"
     ]
-    error_count = sum(1 for r in all_rows if not r["ok"])
     row = [
         cfg.nakama_base, cfg.admin_base, cfg.telemetry_mode, cfg.vus, cfg.iters, len(all_rows),
+        elapsed_seconds,
         login_s["mean"], login_s["p95"], login_s["p99"],
         match_s["mean"], match_s["p95"], match_s["p99"],
         tele_s["mean"], tele_s["p95"], tele_s["p99"],
-        error_count
+        login_success_count, match_search_success_count, telemetry_success_count, successful_iterations,
+        login_throughput_rps, match_search_throughput_rps, telemetry_throughput_rps, overall_throughput_ops,
+        errors_total, login_errors, match_search_errors, telemetry_errors, cfg.errors_csv
     ]
 
     write_header = not os.path.exists(cfg.summary_csv)
@@ -402,14 +537,46 @@ def main():
             cw.writerow(header)
         cw.writerow(row)
 
+    # Write error breakdown CSV (per run)
+    with open(cfg.errors_csv, "w", newline="", encoding="utf-8") as f:
+        cw = csv.writer(f)
+        cw.writerow(["category", "count", "stage"])
+        for (category, stage), count in sorted(
+            category_stage_counter.items(),
+            key=lambda x: (-x[1], x[0][0], x[0][1]),
+        ):
+            cw.writerow([category, count, stage])
+
     print("=== DONE ===")
     print(f"raw_jsonl: {cfg.out_jsonl}")
     print(f"summary_csv: {cfg.summary_csv}")
-    print(f"mode={cfg.telemetry_mode} vus={cfg.vus} iters={cfg.iters} errors={error_count}")
+    print(f"errors_csv: {cfg.errors_csv}")
+    print(f"mode={cfg.telemetry_mode} vus={cfg.vus} iters={cfg.iters}")
+    print(f"elapsed_seconds={elapsed_seconds:.3f}")
     print("login:", login_s)
     print("match_search:", match_s)
     if cfg.telemetry_mode == "sync":
         print("telemetry_sync:", tele_s)
+    print(
+        "throughput:",
+        {
+            "login_throughput_rps": login_throughput_rps,
+            "match_search_throughput_rps": match_search_throughput_rps,
+            "telemetry_throughput_rps": telemetry_throughput_rps,
+            "overall_throughput_ops": overall_throughput_ops,
+        },
+    )
+    print(
+        "errors:",
+        {
+            "errors_total": errors_total,
+            "login_errors": login_errors,
+            "match_search_errors": match_search_errors,
+            "telemetry_errors": telemetry_errors,
+        },
+    )
+    top5 = category_counter.most_common(5)
+    print("top_error_categories:", top5 if top5 else [])
 
 
 if __name__ == "__main__":
